@@ -1,0 +1,1302 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LocalRevisor — Seu corretor. Suas escolhas.</title>
+    <meta
+      name="description"
+      content="Pitch do LocalRevisor: corretor de redações ENEM open source, com a AI que você escolher e os seus dados no seu disco."
+    />
+    <style>
+      :root {
+        --ink: #0f0d14;
+        --ink-soft: #17131f;
+        --text: #f5f1ff;
+        --muted: #aca2bf;
+        --line: rgb(255 255 255 / 0.12);
+        --line-soft: rgb(255 255 255 / 0.07);
+        --purple: #b79cff;
+        --purple-deep: #7a5cff;
+        --peach: #ffb98a;
+        --radius: 24px;
+        --max: 1120px;
+        color-scheme: dark;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+      }
+
+      body {
+        overflow: hidden;
+        background:
+          radial-gradient(900px 600px at 82% -10%, rgb(122 92 255 / 0.28), transparent 60%),
+          radial-gradient(700px 500px at -10% 110%, rgb(255 185 138 / 0.12), transparent 60%),
+          var(--ink);
+        color: var(--text);
+        font-family: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      ::selection {
+        background: var(--purple);
+        color: var(--ink);
+      }
+
+      .progress {
+        position: fixed;
+        inset: 0 0 auto;
+        z-index: 50;
+        height: 3px;
+        background: rgb(255 255 255 / 0.06);
+      }
+
+      .progress span {
+        display: block;
+        width: 0;
+        height: 100%;
+        background: linear-gradient(90deg, var(--purple-deep), var(--purple), var(--peach));
+        transition: width 0.45s cubic-bezier(0.2, 0.7, 0.2, 1);
+      }
+
+      .deck {
+        height: 100dvh;
+      }
+
+      .slide {
+        display: none;
+        height: 100dvh;
+        overflow-y: auto;
+        padding: clamp(56px, 8vh, 96px) clamp(20px, 5vw, 72px) 120px;
+        scrollbar-width: thin;
+        scrollbar-color: var(--line) transparent;
+      }
+
+      .slide.is-active {
+        display: block;
+      }
+
+      .slide__inner {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: clamp(18px, 2.4vw, 30px);
+        width: min(var(--max), 100%);
+        min-height: calc(100dvh - clamp(56px, 8vh, 96px) - 120px);
+        margin: 0 auto;
+      }
+
+      .eyebrow {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+      }
+
+      .eyebrow::before {
+        content: "";
+        width: 7px;
+        height: 7px;
+        flex-shrink: 0;
+        border-radius: 50%;
+        background: var(--purple);
+        box-shadow: 0 0 16px var(--purple);
+      }
+
+      .slide__index {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+
+      .slide__index b {
+        color: var(--purple);
+        font-weight: 600;
+      }
+
+      .slide__index::after {
+        content: "";
+        width: 48px;
+        height: 1px;
+        background: var(--line);
+      }
+
+      h1,
+      h2,
+      p {
+        margin: 0;
+      }
+
+      h2 {
+        max-width: 20ch;
+        font-size: clamp(2.1rem, 5vw, 3.8rem);
+        font-weight: 650;
+        line-height: 0.98;
+        letter-spacing: -0.035em;
+        text-wrap: balance;
+      }
+
+      .lead {
+        max-width: 62ch;
+        color: var(--muted);
+        font-size: clamp(1rem, 1.55vw, 1.25rem);
+        line-height: 1.55;
+        text-wrap: pretty;
+      }
+
+      .lead strong {
+        color: var(--text);
+        font-weight: 600;
+      }
+
+      .accent {
+        color: var(--purple);
+      }
+
+      .cover {
+        position: relative;
+      }
+
+      .cover .slide__inner {
+        gap: clamp(20px, 3vw, 34px);
+      }
+
+      .cover h1 {
+        max-width: 15ch;
+        font-size: clamp(3rem, 9.2vw, 7.4rem);
+        font-weight: 650;
+        line-height: 0.88;
+        letter-spacing: -0.05em;
+      }
+
+      .cover h1 em {
+        display: inline-block;
+        background: linear-gradient(100deg, var(--purple) 10%, var(--peach) 90%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        font-family: Georgia, "Times New Roman", serif;
+        font-weight: 400;
+        letter-spacing: -0.03em;
+      }
+
+      .cover__lead {
+        max-width: 54ch;
+        color: var(--text);
+        font-size: clamp(1.05rem, 1.9vw, 1.5rem);
+        line-height: 1.45;
+      }
+
+      .cover__quote {
+        max-width: 52ch;
+        padding-left: 18px;
+        border-left: 2px solid var(--purple);
+        color: var(--muted);
+        font-size: clamp(0.95rem, 1.35vw, 1.1rem);
+        font-style: italic;
+        line-height: 1.55;
+      }
+
+      .cover__meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 22px;
+        color: var(--muted);
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .cover__meta span {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .cover__meta span::before {
+        content: "";
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background: var(--line);
+        box-shadow: 0 0 0 1px var(--muted) inset;
+      }
+
+      .grid {
+        display: grid;
+        gap: 14px;
+      }
+
+      .grid--4 {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .grid--3 {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .grid--2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .card {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: clamp(18px, 2vw, 26px);
+        border: 1px solid var(--line-soft);
+        border-radius: var(--radius);
+        background: linear-gradient(180deg, rgb(255 255 255 / 0.055), rgb(255 255 255 / 0.018));
+        transition:
+          border-color 0.25s ease,
+          transform 0.25s ease,
+          background 0.25s ease;
+      }
+
+      .card:hover {
+        transform: translateY(-3px);
+        border-color: rgb(183 156 255 / 0.4);
+        background: linear-gradient(180deg, rgb(183 156 255 / 0.09), rgb(255 255 255 / 0.02));
+      }
+
+      .card__icon {
+        display: grid;
+        place-items: center;
+        width: 38px;
+        height: 38px;
+        margin-bottom: 6px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        color: var(--purple);
+      }
+
+      .card__icon svg {
+        width: 19px;
+        height: 19px;
+        fill: currentColor;
+      }
+
+      .card h3 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+
+      .card p {
+        color: var(--muted);
+        font-size: 0.875rem;
+        line-height: 1.5;
+      }
+
+      .punch {
+        padding-top: clamp(6px, 1vw, 12px);
+        color: var(--text);
+        font-size: clamp(1.15rem, 2.4vw, 1.8rem);
+        font-weight: 600;
+        line-height: 1.25;
+        letter-spacing: -0.02em;
+        text-wrap: balance;
+      }
+
+      .punch span {
+        color: var(--peach);
+      }
+
+      .pillars {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .pillar {
+        position: relative;
+        overflow: hidden;
+        padding: clamp(22px, 2.6vw, 32px);
+        border: 1px solid var(--line-soft);
+        border-radius: var(--radius);
+        background: linear-gradient(160deg, rgb(183 156 255 / 0.08), rgb(255 255 255 / 0.015));
+      }
+
+      .pillar__num {
+        display: block;
+        margin-bottom: clamp(24px, 4vw, 46px);
+        color: rgb(183 156 255 / 0.55);
+        font-family: Georgia, serif;
+        font-size: 2.6rem;
+        line-height: 1;
+      }
+
+      .pillar h3 {
+        margin: 0 0 8px;
+        font-size: clamp(1.1rem, 1.6vw, 1.3rem);
+        font-weight: 600;
+      }
+
+      .pillar p {
+        color: var(--muted);
+        font-size: 0.9rem;
+        line-height: 1.55;
+      }
+
+      .panel {
+        display: grid;
+        gap: 12px;
+        padding: clamp(20px, 2.4vw, 28px);
+        border: 1px solid var(--line-soft);
+        border-radius: var(--radius);
+        background: rgb(255 255 255 / 0.025);
+      }
+
+      .panel h3 {
+        margin: 0;
+        color: var(--text);
+        font-size: 0.95rem;
+        font-weight: 600;
+      }
+
+      .panel p {
+        color: var(--muted);
+        font-size: 0.875rem;
+        line-height: 1.5;
+      }
+
+      .panel__tag {
+        justify-self: start;
+        padding: 5px 11px;
+        border: 1px solid rgb(183 156 255 / 0.35);
+        border-radius: 999px;
+        background: rgb(183 156 255 / 0.1);
+        color: var(--purple);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .chip {
+        padding: 8px 14px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        color: var(--muted);
+        font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+        font-size: 0.78rem;
+        transition:
+          color 0.2s ease,
+          border-color 0.2s ease;
+      }
+
+      .chip:hover {
+        border-color: var(--purple);
+        color: var(--purple);
+      }
+
+      .chip--hot {
+        border-color: rgb(255 185 138 / 0.4);
+        background: rgb(255 185 138 / 0.08);
+        color: var(--peach);
+      }
+
+      .endpoint {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 16px;
+        border: 1px dashed var(--line);
+        border-radius: 12px;
+        color: var(--muted);
+        font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+        font-size: 0.8rem;
+      }
+
+      .endpoint b {
+        color: var(--purple);
+        font-weight: 500;
+      }
+
+      .endpoint span {
+        color: var(--peach);
+      }
+
+      .checks {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px 24px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .checks li {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--line-soft);
+        color: var(--muted);
+        font-size: 0.92rem;
+        line-height: 1.45;
+      }
+
+      .checks li::before {
+        content: "✓";
+        display: grid;
+        place-items: center;
+        width: 20px;
+        height: 20px;
+        flex-shrink: 0;
+        margin-top: 1px;
+        border-radius: 50%;
+        background:
+          linear-gradient(var(--ink), var(--ink)) padding-box,
+          linear-gradient(135deg, var(--purple), var(--peach)) border-box;
+        border: 1px solid transparent;
+        color: var(--purple);
+        font-size: 10px;
+      }
+
+      .checks b {
+        color: var(--text);
+        font-weight: 600;
+      }
+
+      .terminal {
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: #0b0910;
+      }
+
+      .terminal__bar {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 11px 14px;
+        border-bottom: 1px solid var(--line-soft);
+      }
+
+      .terminal__bar i {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: rgb(255 255 255 / 0.16);
+      }
+
+      .terminal__bar i:nth-child(1) {
+        background: #ff6b6b;
+      }
+
+      .terminal__bar i:nth-child(2) {
+        background: #ffd166;
+      }
+
+      .terminal__bar i:nth-child(3) {
+        background: #6ee7a8;
+      }
+
+      .terminal pre {
+        margin: 0;
+        padding: 16px 18px;
+        overflow-x: auto;
+        color: var(--text);
+        font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+        font-size: clamp(0.78rem, 1.15vw, 0.9rem);
+        line-height: 1.7;
+      }
+
+      .terminal .prompt {
+        color: var(--purple);
+      }
+
+      .terminal .out {
+        color: var(--muted);
+      }
+
+      .terminal .hl {
+        color: var(--peach);
+      }
+
+      .flow {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        counter-reset: step;
+      }
+
+      .step {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: clamp(18px, 2vw, 24px);
+        border-top: 1px solid var(--line);
+      }
+
+      .step::before {
+        counter-increment: step;
+        content: "0" counter(step);
+        color: var(--purple);
+        font-family: Georgia, serif;
+        font-size: 1.7rem;
+        line-height: 1;
+      }
+
+      .step h3 {
+        margin: 0;
+        font-size: 0.98rem;
+        font-weight: 600;
+      }
+
+      .step p {
+        color: var(--muted);
+        font-size: 0.84rem;
+        line-height: 1.5;
+      }
+
+      .competencies {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .competencies span {
+        padding: 6px 11px;
+        border-radius: 8px;
+        background: rgb(255 255 255 / 0.05);
+        color: var(--muted);
+        font-size: 0.73rem;
+        letter-spacing: 0.02em;
+      }
+
+      .competencies b {
+        color: var(--purple);
+        font-weight: 600;
+      }
+
+      .close {
+        text-align: center;
+      }
+
+      .close .slide__inner {
+        align-items: center;
+      }
+
+      .close h2 {
+        max-width: 20ch;
+        font-size: clamp(2.5rem, 7vw, 5.6rem);
+        line-height: 0.92;
+      }
+
+      .close h2 em {
+        background: linear-gradient(100deg, var(--purple), var(--peach));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        font-family: Georgia, serif;
+        font-weight: 400;
+      }
+
+      .close .lead {
+        margin: 0 auto;
+      }
+
+      .close__brand {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        color: var(--text);
+        font-size: 1.05rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+
+      .close__brand::before,
+      .close__brand::after {
+        content: "";
+        width: clamp(28px, 8vw, 90px);
+        height: 1px;
+        background: var(--line);
+      }
+
+      .close__cmd {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 20px;
+        border: 1px solid rgb(183 156 255 / 0.35);
+        border-radius: 999px;
+        background: rgb(183 156 255 / 0.1);
+        color: var(--purple);
+        font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+        font-size: 0.82rem;
+      }
+
+      .close__cmd span {
+        color: var(--peach);
+      }
+
+      .hud {
+        position: fixed;
+        inset: auto 0 0;
+        z-index: 40;
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        gap: 16px;
+        padding: 14px clamp(16px, 4vw, 32px);
+        border-top: 1px solid var(--line-soft);
+        background: rgb(15 13 20 / 0.72);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+      }
+
+      .hud__brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+        color: var(--muted);
+        font-size: 11px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      .hud__brand strong {
+        color: var(--text);
+        font-weight: 600;
+        letter-spacing: 0;
+        text-transform: none;
+        font-size: 13px;
+      }
+
+      .dots {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+      }
+
+      .dots button {
+        width: 7px;
+        height: 7px;
+        padding: 0;
+        border: 0;
+        border-radius: 999px;
+        background: rgb(255 255 255 / 0.22);
+        cursor: pointer;
+        transition:
+          width 0.3s ease,
+          background 0.3s ease;
+      }
+
+      .dots button:hover {
+        background: var(--text);
+      }
+
+      .dots button[aria-current="true"] {
+        width: 26px;
+        background: var(--purple);
+      }
+
+      .hud__nav {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 10px;
+      }
+
+      .hud__count {
+        margin-right: 6px;
+        color: var(--muted);
+        font-family: ui-monospace, "SF Mono", Consolas, monospace;
+        font-size: 11px;
+        letter-spacing: 0.08em;
+      }
+
+      .hud__count b {
+        color: var(--text);
+        font-weight: 500;
+      }
+
+      .nav-btn {
+        display: grid;
+        place-items: center;
+        width: 38px;
+        height: 38px;
+        border: 1px solid var(--line);
+        border-radius: 50%;
+        background: transparent;
+        color: var(--text);
+        cursor: pointer;
+        transition:
+          background 0.2s ease,
+          border-color 0.2s ease,
+          opacity 0.2s ease;
+      }
+
+      .nav-btn:hover:not(:disabled) {
+        border-color: var(--purple);
+        background: rgb(183 156 255 / 0.12);
+      }
+
+      .nav-btn:disabled {
+        opacity: 0.3;
+        cursor: default;
+      }
+
+      .nav-btn svg {
+        width: 17px;
+        height: 17px;
+        fill: currentColor;
+      }
+
+      .nav-btn:focus-visible,
+      .dots button:focus-visible {
+        outline: 2px solid var(--purple);
+        outline-offset: 3px;
+      }
+
+      .hint {
+        position: absolute;
+        right: clamp(20px, 5vw, 72px);
+        bottom: 92px;
+        color: var(--muted);
+        font-size: 11px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        opacity: 0.7;
+      }
+
+      .reveal {
+        animation: rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+        animation-delay: var(--d, 0s);
+      }
+
+      @keyframes rise {
+        from {
+          opacity: 0;
+          transform: translateY(18px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @media (max-width: 900px) {
+        .grid--4 {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .flow {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 720px) {
+        .slide {
+          padding-bottom: 132px;
+        }
+
+        .slide__inner {
+          min-height: calc(100dvh - 188px);
+        }
+
+        .grid--4,
+        .grid--3,
+        .grid--2,
+        .pillars,
+        .checks,
+        .flow {
+          grid-template-columns: 1fr;
+        }
+
+        .pillar__num {
+          margin-bottom: 16px;
+          font-size: 1.8rem;
+        }
+
+        .checks {
+          gap: 0;
+        }
+
+        .hud {
+          grid-template-columns: auto 1fr;
+        }
+
+        .dots {
+          display: none;
+        }
+
+        .hud__brand span {
+          display: none;
+        }
+
+        .hint {
+          display: none;
+        }
+
+        .cover h1 {
+          font-size: clamp(2.6rem, 13vw, 4rem);
+        }
+
+        .close h2 {
+          font-size: clamp(2.2rem, 12vw, 3.6rem);
+        }
+      }
+
+      @media (max-height: 820px) {
+        .slide {
+          padding-top: 44px;
+          padding-bottom: 104px;
+        }
+
+        .slide__inner {
+          gap: clamp(12px, 1.8vh, 18px);
+          min-height: calc(100dvh - 148px);
+        }
+
+        .cover h1 {
+          font-size: clamp(2.8rem, 8vw, 5.6rem);
+        }
+
+        .pillar__num {
+          margin-bottom: 18px;
+          font-size: 2rem;
+        }
+      }
+
+      @media (max-height: 720px) {
+        .slide {
+          padding-top: 40px;
+          padding-bottom: 100px;
+        }
+
+        .slide__inner {
+          min-height: auto;
+          gap: 16px;
+        }
+
+        .cover__quote {
+          display: none;
+        }
+
+        .pillar__num {
+          margin-bottom: 16px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.01ms !important;
+          animation-delay: 0s !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+
+      @media print {
+        html,
+        body {
+          height: auto;
+          overflow: visible;
+          background: var(--ink);
+        }
+
+        .progress,
+        .hud,
+        .hint {
+          display: none !important;
+        }
+
+        .slide {
+          display: block !important;
+          height: auto;
+          min-height: 100vh;
+          break-after: page;
+          page-break-after: always;
+          padding: 48px;
+        }
+
+        .slide__inner {
+          min-height: 90vh;
+        }
+
+        .reveal {
+          animation: none;
+        }
+
+        .card:hover {
+          transform: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="progress" aria-hidden="true"><span id="progress-bar"></span></div>
+
+    <main class="deck" id="deck">
+      <section class="slide cover is-active" aria-label="Capa">
+        <div class="slide__inner">
+          <p class="eyebrow reveal" style="--d: 0.05s">localᴚevisor · open source</p>
+          <h1 class="reveal" style="--d: 0.12s">
+            Seu corretor.<br />
+            <em>Suas escolhas.</em>
+          </h1>
+          <p class="cover__lead reveal" style="--d: 0.22s">
+            Correção de redações ENEM com <strong>a AI que você escolher</strong> — sem
+            assinatura de plataforma, sem modelo imposto e sem entregar seus textos.
+          </p>
+          <p class="cover__quote reveal" style="--d: 0.3s">
+            “Não se prenda a regras e assinaturas de plataforma. Sua correção, sua
+            liberdade.”
+          </p>
+          <p class="cover__meta reveal" style="--d: 0.38s">
+            <span>PDF · foto · texto</span>
+            <span>Nota + explicação + erros</span>
+            <span>Roda na sua máquina</span>
+          </p>
+        </div>
+        <span class="hint" aria-hidden="true">Use → para navegar</span>
+      </section>
+
+      <section class="slide" aria-label="O problema">
+        <div class="slide__inner">
+          <p class="slide__index reveal"><b>01</b> O problema</p>
+          <h2 class="reveal" style="--d: 0.08s">Corrigir virou assinatura.</h2>
+          <p class="lead reveal" style="--d: 0.14s">
+            Plataformas fechadas decidem o preço, o modelo e o destino do seu texto.
+            Você só escolhe o plano.
+          </p>
+          <div class="grid grid--4">
+            <article class="card reveal" style="--d: 0.2s">
+              <span class="card__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M12 1a11 11 0 1 0 0 22 11 11 0 0 0 0-22zm0 20a9 9 0 1 1 0-18 9 9 0 0 1 0 18zm1-14h-2v6h2V7zm0 8h-2v2h2v-2z" />
+                </svg>
+              </span>
+              <h3>Preço por correção</h3>
+              <p>Créditos, planos e limites que mudam sem aviso — e sem você poder trocar a peça.</p>
+            </article>
+            <article class="card reveal" style="--d: 0.26s">
+              <span class="card__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 16H5V5h14v14zM7 7h10v2H7V7zm0 4h10v2H7v-2zm0 4h7v2H7v-2z" />
+                </svg>
+              </span>
+              <h3>Seu texto, a nuvem deles</h3>
+              <p>A redação sai da sua mão e você não sabe até onde vai, nem por quanto tempo fica.</p>
+            </article>
+            <article class="card reveal" style="--d: 0.32s">
+              <span class="card__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M20 8h-3V4H3a2 2 0 0 0-2 2v11h2a3 3 0 0 0 6 0h6a3 3 0 0 0 6 0h2v-5l-3-4zM6 18a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm12 0a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm1-7h-2V9h2l1.5 2H19z" />
+                </svg>
+              </span>
+              <h3>Modelo imposto</h3>
+              <p>A AI é deles, a versão é deles, os critérios também. Você recebe o resultado, não o controle.</p>
+            </article>
+            <article class="card reveal" style="--d: 0.38s">
+              <span class="card__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M18 8h-1V6a5 5 0 0 0-10 0v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2zM9 6a3 3 0 0 1 6 0v2H9V6zm9 14H6V10h12v10z" />
+                </svg>
+              </span>
+              <h3>Lock-in</h3>
+              <p>Migrar significa perder histórico, ajustes e fluxo. O corretor nunca é realmente seu.</p>
+            </article>
+          </div>
+          <p class="punch reveal" style="--d: 0.44s">
+            Controle total? <span>Só se for seu.</span>
+          </p>
+        </div>
+      </section>
+
+      <section class="slide" aria-label="A proposta">
+        <div class="slide__inner">
+          <p class="slide__index reveal"><b>02</b> A resposta</p>
+          <h2 class="reveal" style="--d: 0.08s">Um corretor que é seu.</h2>
+          <p class="lead reveal" style="--d: 0.14s">
+            LocalRevisor é uma aplicação web enxuta de correção de redações no padrão
+            ENEM. <strong>Open source, local-first</strong> e sem amarras de plataforma.
+          </p>
+          <div class="pillars">
+            <article class="pillar reveal" style="--d: 0.2s">
+              <span class="pillar__num" aria-hidden="true">01</span>
+              <h3>Código aberto</h3>
+              <p>Leia, altere, rode e adapte. O corretor é seu — inclusive o código por trás dele.</p>
+            </article>
+            <article class="pillar reveal" style="--d: 0.27s">
+              <span class="pillar__num" aria-hidden="true">02</span>
+              <h3>Seu modelo</h3>
+              <p>Conecte o provedor ou o modelo local que fizer sentido para o seu uso e seu bolso.</p>
+            </article>
+            <article class="pillar reveal" style="--d: 0.34s">
+              <span class="pillar__num" aria-hidden="true">03</span>
+              <h3>Seus dados</h3>
+              <p>Histórico em SQLite no seu disco. Sem conta, sem assinatura, sem depender de terceiros.</p>
+            </article>
+          </div>
+          <p class="punch reveal" style="--d: 0.42s">
+            Um corretor. <span>Suas regras.</span>
+          </p>
+        </div>
+      </section>
+
+      <section class="slide" aria-label="Sua escolha de AI">
+        <div class="slide__inner">
+          <p class="slide__index reveal"><b>03</b> Sua escolha de AI</p>
+          <h2 class="reveal" style="--d: 0.08s">Traga o modelo. Qualquer um.</h2>
+          <p class="lead reveal" style="--d: 0.14s">
+            O LocalRevisor fala a API compatível com OpenAI. Você aponta a URL base,
+            escolhe o modelo e pronto. <strong>Nenhum provedor no meio do caminho.</strong>
+          </p>
+          <div class="grid grid--2">
+            <article class="panel reveal" style="--d: 0.2s">
+              <span class="panel__tag">Correção</span>
+              <h3>Modelo de correção</h3>
+              <p>Avalia a redação nas cinco competências do ENEM e devolve nota, explicação e erros em JSON.</p>
+            </article>
+            <article class="panel reveal" style="--d: 0.27s">
+              <span class="panel__tag">Leitura</span>
+              <h3>Modelo de visão</h3>
+              <p>Transcreve fotos e PDFs escaneados antes da correção. Separado do modelo principal, como deve ser.</p>
+            </article>
+          </div>
+          <div class="chips reveal" style="--d: 0.33s" aria-label="Exemplos de provedores compatíveis">
+            <span class="chip chip--hot">DeepSeek</span>
+            <span class="chip">OpenAI</span>
+            <span class="chip">Groq</span>
+            <span class="chip">OpenRouter</span>
+            <span class="chip">Ollama</span>
+            <span class="chip">vLLM</span>
+            <span class="chip">LM Studio</span>
+            <span class="chip">seu endpoint</span>
+          </div>
+          <div class="endpoint reveal" style="--d: 0.39s">
+            <b>base_url</b> <span>=</span> http://localhost:11434/v1
+          </div>
+          <p class="punch reveal" style="--d: 0.45s">
+            Trocar de AI é editar uma URL — <span>não trocar de plataforma.</span>
+          </p>
+        </div>
+      </section>
+
+      <section class="slide" aria-label="Sua liberdade">
+        <div class="slide__inner">
+          <p class="slide__index reveal"><b>04</b> Sua liberdade</p>
+          <h2 class="reveal" style="--d: 0.08s">Sem assinatura. Sem lock-in. Sem pedir licença.</h2>
+          <p class="lead reveal" style="--d: 0.14s">
+            Você escolhe onde rodar, qual modelo usar e o que fazer com o histórico.
+            O texto só vai para o provedor que <strong>você</strong> configurar.
+          </p>
+          <ul class="checks reveal" style="--d: 0.2s">
+            <li><span><b>Roda onde quiser</b> — Docker, Nix ou Python direto na sua máquina.</span></li>
+            <li><span><b>Chave no seu .env</b> — não em um painel de terceiros.</span></li>
+            <li><span><b>Histórico local</b> — SQLite no seu disco, com backup e exclusão por sua conta.</span></li>
+            <li><span><b>Sem telemetria</b> — nenhum dado nosso, nenhuma conta, nenhum rastreio.</span></li>
+            <li><span><b>Fork de verdade</b> — audite, adapte os critérios e contribua de volta.</span></li>
+            <li><span><b>Sem fidelidade</b> — pare quando quiser. O código continua sendo seu.</span></li>
+          </ul>
+          <div class="terminal reveal" style="--d: 0.3s">
+            <div class="terminal__bar" aria-hidden="true"><i></i><i></i><i></i></div>
+            <pre><span class="prompt">$</span> docker compose up
+<span class="out">→ LocalRevisor em</span> <span class="hl">http://localhost:5000</span></pre>
+          </div>
+          <p class="lead reveal" style="--d: 0.38s">
+            Do zero ao primeiro corretor em dois comandos.
+          </p>
+        </div>
+      </section>
+
+      <section class="slide" aria-label="Como funciona">
+        <div class="slide__inner">
+          <p class="slide__index reveal"><b>05</b> Como funciona</p>
+          <h2 class="reveal" style="--d: 0.08s">Da redação à nota, sem atrito.</h2>
+          <p class="lead reveal" style="--d: 0.14s">
+            Envie, espere e leia. A correção roda em segundo plano enquanto você continua
+            a vida — com histórico para retomar depois.
+          </p>
+          <div class="flow">
+            <article class="step reveal" style="--d: 0.2s">
+              <h3>Envie</h3>
+              <p>PDF, foto, Markdown, TXT ou texto colado. O tema é o único campo obrigatório.</p>
+            </article>
+            <article class="step reveal" style="--d: 0.26s">
+              <h3>Transcreva</h3>
+              <p>Texto digital é lido direto. Foto ou PDF escaneado passa pelo modelo de visão.</p>
+            </article>
+            <article class="step reveal" style="--d: 0.32s">
+              <h3>Corrija</h3>
+              <p>As cinco competências do ENEM viram uma nota de 0 a 1000, com explicação e erros.</p>
+            </article>
+            <article class="step reveal" style="--d: 0.38s">
+              <h3>Consulte</h3>
+              <p>Resultado salvo no histórico. Reabra, apague ou tente de novo quando precisar.</p>
+            </article>
+          </div>
+          <div class="competencies reveal" style="--d: 0.44s" aria-label="Competências avaliadas">
+            <span><b>C1</b> norma culta</span>
+            <span><b>C2</b> tema e repertório</span>
+            <span><b>C3</b> argumentação</span>
+            <span><b>C4</b> coesão</span>
+            <span><b>C5</b> intervenção</span>
+            <span>+ sem contagem rígida de linhas: seu texto é digital</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide close" aria-label="Convite">
+        <div class="slide__inner">
+          <p class="eyebrow reveal"><b>06</b> O convite</p>
+          <h2 class="reveal" style="--d: 0.08s">
+            Sua correção.<br />
+            <em>Sua liberdade.</em>
+          </h2>
+          <p class="lead reveal" style="--d: 0.18s">
+            Open source. Seu modelo. Suas regras. Sem assinatura para pedir licença ao
+            seu próprio texto.
+          </p>
+          <p class="close__brand reveal" style="--d: 0.26s">localᴚevisor</p>
+          <p class="close__cmd reveal" style="--d: 0.34s">
+            <span>$</span> docker compose up
+          </p>
+          <p class="lead reveal" style="--d: 0.4s">
+            Leia o código, troque o modelo, adapte os critérios. <strong>É seu.</strong>
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="hud">
+      <div class="hud__brand">
+        <strong>localᴚevisor</strong>
+        <span>seu corretor, suas escolhas</span>
+      </div>
+      <div class="dots" id="dots" role="tablist" aria-label="Navegação dos slides"></div>
+      <div class="hud__nav">
+        <span class="hud__count" id="count"><b>01</b> / 07</span>
+        <button class="nav-btn" id="prev" type="button" aria-label="Slide anterior">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z" /></svg>
+        </button>
+        <button class="nav-btn" id="next" type="button" aria-label="Próximo slide">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" /></svg>
+        </button>
+      </div>
+    </footer>
+
+    <script>
+      const slides = Array.from(document.querySelectorAll(".slide"));
+      const dots = document.getElementById("dots");
+      const count = document.getElementById("count");
+      const bar = document.getElementById("progress-bar");
+      const prev = document.getElementById("prev");
+      const next = document.getElementById("next");
+      let current = 0;
+
+      const pad = (value) => String(value).padStart(2, "0");
+
+      slides.forEach((slide, index) => {
+        const dot = document.createElement("button");
+        dot.type = "button";
+        dot.setAttribute("role", "tab");
+        dot.setAttribute("aria-label", "Ir para o slide " + (index + 1));
+        dot.addEventListener("click", () => show(index));
+        dots.appendChild(dot);
+      });
+
+      function show(index) {
+        current = Math.max(0, Math.min(slides.length - 1, index));
+        slides.forEach((slide, i) => {
+          const active = i === current;
+          slide.classList.toggle("is-active", active);
+          slide.setAttribute("aria-hidden", String(!active));
+          slide.inert = !active;
+          slide.scrollTop = 0;
+        });
+        Array.from(dots.children).forEach((dot, i) => {
+          dot.setAttribute("aria-current", String(i === current));
+        });
+        count.innerHTML = "<b>" + pad(current + 1) + "</b> / " + pad(slides.length);
+        bar.style.width = ((current + 1) / slides.length) * 100 + "%";
+        prev.disabled = current === 0;
+        next.disabled = current === slides.length - 1;
+        try {
+          history.replaceState(null, "", "#" + (current + 1));
+        } catch (error) {
+          /* file:// pode bloquear replaceState */
+        }
+      }
+
+      prev.addEventListener("click", () => show(current - 1));
+      next.addEventListener("click", () => show(current + 1));
+
+      document.addEventListener("keydown", (event) => {
+        if (event.altKey || event.ctrlKey || event.metaKey) return;
+        if (["ArrowRight", "ArrowDown", "PageDown", " "].includes(event.key)) {
+          event.preventDefault();
+          show(current + 1);
+        } else if (["ArrowLeft", "ArrowUp", "PageUp"].includes(event.key)) {
+          event.preventDefault();
+          show(current - 1);
+        } else if (event.key === "Home") {
+          event.preventDefault();
+          show(0);
+        } else if (event.key === "End") {
+          event.preventDefault();
+          show(slides.length - 1);
+        }
+      });
+
+      let touchStartX = 0;
+      let touchStartY = 0;
+      document.addEventListener(
+        "touchstart",
+        (event) => {
+          touchStartX = event.changedTouches[0].clientX;
+          touchStartY = event.changedTouches[0].clientY;
+        },
+        { passive: true }
+      );
+      document.addEventListener(
+        "touchend",
+        (event) => {
+          const dx = event.changedTouches[0].clientX - touchStartX;
+          const dy = event.changedTouches[0].clientY - touchStartY;
+          if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)) {
+            show(current + (dx < 0 ? 1 : -1));
+          }
+        },
+        { passive: true }
+      );
+
+      const initial = parseInt(location.hash.replace("#", ""), 10);
+      show(Number.isNaN(initial) ? 0 : initial - 1);
+    </script>
+  </body>
+</html>

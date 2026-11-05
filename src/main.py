@@ -318,9 +318,7 @@ init_db()
 def index():
     corrections = recent_corrections()
     pending = any(c["status"] == "corrigindo" for c in corrections)
-    return render_template(
-        "index.html", corrections=corrections, pending=pending
-    )
+    return render_template("index.html", corrections=corrections, pending=pending)
 
 
 @app.route("/review/<int:correction_id>")
@@ -389,9 +387,10 @@ def upload():
             filename = file.filename if file else None
             if not filename:
                 error = "Selecione um arquivo."
-            elif (
-                os.path.splitext(filename)[1].lower() not in ALLOWED_EXTENSIONS
-                and not file.mimetype.startswith("image/")
+            elif os.path.splitext(filename)[
+                1
+            ].lower() not in ALLOWED_EXTENSIONS and not file.mimetype.startswith(
+                "image/"
             ):
                 error = "Formato não suportado. Envie PDF, imagem, .md ou .txt."
             elif not theme:
