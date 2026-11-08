@@ -1,9 +1,12 @@
-"""Estimativa opcional das notas por competência com o BERTimbau ajustado.
+""""Estimativa opcional das notas por competência com o BERTimbau ajustado.
 
-Ativação: variável de ambiente USE_BERT=1 e pasta do modelo existente
-(por padrão, modelos/bertimbau_enem na raiz do projeto; pode ser trocada com BERT_DIR).
-O torch e o transformers só são importados quando o modelo é realmente usado.
+O modo BERT é ligado e desligado na tela de Configurações do app. Este módulo informa se ele
+pode ser usado (pasta do modelo e dependências presentes) e faz a estimativa das notas.
+A pasta do modelo é, por padrão, modelos/bertimbau_enem na raiz do projeto (pode ser trocada
+com a variável de ambiente BERT_DIR). O torch e o transformers só são importados quando o
+modelo é realmente usado.
 """
+import importlib.util
 import os
 import threading
 from pathlib import Path
@@ -21,9 +24,26 @@ def _pasta():
     return Path(os.environ.get("BERT_DIR", padrao))
 
 
-def disponivel():
-    """True se USE_BERT=1 e a pasta do modelo existe."""
-    return os.environ.get("USE_BERT", "0") == "1" and _pasta().is_dir()
+def motivo_indisponivel():
+    """Explica por que o modo BERT não pode ser usado, ou devolve None se está tudo pronto."""
+    if not _pasta().is_dir():
+        return "a pasta do modelo não foi encontrada (veja a seção Modo BERT do README)."
+    faltando = [
+        nome
+        for nome in ("torch", "transformers", "numpy")
+        if importlib.util.find_spec(nome) is None
+    ]
+    if faltando:
+        return (
+            "faltam dependências (" + ", ".join(faltando) + "). "
+            "Rode: pip install -r requirements-bert.txt"
+        )
+    return None
+
+
+def instalado():
+    """True se a pasta do modelo e as dependências estão presentes."""
+    return motivo_indisponivel() is None
 
 
 def _carregar():

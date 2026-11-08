@@ -35,6 +35,7 @@ DEFAULT_SETTINGS = {
     "correction_model": os.environ.get("OPENAI_MODEL", ""),
     "image_model": os.environ.get("OPENAI_IMAGE_MODEL", ""),
     "models": "[]",
+    "use_bert": os.environ.get("USE_BERT", "0"),
 }
 
 ALLOWED_EXTENSIONS = {".pdf", ".md", ".txt"}
@@ -310,7 +311,7 @@ def request_review(theme, path):
     if not model:
         raise ValueError("Nenhum modelo de correção configurado.")
     text = obtain_text(path)
-    if bert_notas.disponivel():
+    if settings.get("use_bert") == "1" and bert_notas.instalado():
         scores, truncated = bert_notas.estimar(text)
         scores_text = "\n".join(f"{name}: {value}" for name, value in scores.items())
         messages = [
@@ -472,6 +473,8 @@ def config():
         settings["base_url"] = request.form.get("base_url", "").strip()
         settings["correction_model"] = request.form.get("correction_model", "").strip()
         settings["image_model"] = request.form.get("image_model", "").strip()
+        if bert_notas.instalado():
+            settings["use_bert"] = "1" if request.form.get("use_bert") else "0"
         entered_key = request.form.get("api_key", "").strip()
         if any(char.isspace() for char in entered_key):
             key_error = True
@@ -530,4 +533,7 @@ def config():
         correction_model=settings["correction_model"],
         image_model=settings["image_model"],
         message=message,
+        use_bert=settings.get("use_bert") == "1",
+        bert_available=bert_notas.instalado(),
+        bert_reason=bert_notas.motivo_indisponivel(),
     )
