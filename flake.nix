@@ -10,17 +10,33 @@
     let
       system = "x86_64-linux";
       pkgs = import nixpkgs { inherit system; };
+      python = pkgs.python314.withPackages (ps: with ps; [
+        # app
+        flask
+        openai
+        pypdf
+        python-dotenv
+        # modo BERT (opcional)
+        numpy
+        torch
+        transformers
+        safetensors
+        tokenizers
+        huggingface-hub
+      ]);
     in
     {
       devShells.${system}.default = pkgs.mkShell {
-        buildInputs = with pkgs; [
-          python314
+        buildInputs = [
+          python
+        ] ++ (with pkgs; [
           ruff
           ffmpeg
+          curl
           uv
           vscode-html-languageserver
           vscode-css-languageserver
-        ];
+        ]);
       };
     };
 }

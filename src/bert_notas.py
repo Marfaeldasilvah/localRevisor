@@ -8,15 +8,28 @@ modelo é realmente usado.
 """
 import importlib.util
 import os
+import shutil
+import subprocess
 import threading
 from pathlib import Path
 
 COMPETENCIAS = ["C1", "C2", "C3", "C4", "C5"]
 MAX_TOKENS = 512
+REPO_MODELO = "https://huggingface.co/neuralmind/bert-base-portuguese-cased/resolve/main"
+ARQUIVOS_MODELO = (
+    "config.json",
+    "pytorch_model.bin",
+    "tokenizer_config.json",
+    "vocab.txt",
+    "special_tokens_map.json",
+    "added_tokens.json",
+)
 
 _trava = threading.Lock()  # uma estimativa por vez, mesmo com várias correções em paralelo
 _modelo = None
 _tokenizador = None
+_baixando = False
+_erro_download = None
 
 
 def _pasta():
@@ -24,9 +37,41 @@ def _pasta():
     return Path(os.environ.get("BERT_DIR", padrao))
 
 
+def _baixar():
+    global _baixando, _erro_download
+    destino = _pasta()
+    temporaria = destino.with_name(destino.name + ".tmp")
+    try:
+        shutil.rmtree(temporaria, ignore_errors=True)
+        temporaria.mkdir(parents=True)
+        for nome in ARQUIVOS_MODELO:
+            subprocess.run(
+                [
+                    "curl",
+                    "-fL",
+                    "--retry",
+                    "3",
+                    "-o",
+                    str(temporaria / nome),
+                    f"{REPO_MODELO}/{nome}",
+                ],
+                check=True,
+            )
+        temporaria.rename(destino)
+    except (OSError, subprocess.CalledProcessError) as erro:
+        _erro_download = str(erro)
+        shutil.rmtree(temporaria, ignore_errors=True)
+    finally:
+        _baixando = False
+
+
 def motivo_indisponivel():
     """Explica por que o modo BERT não pode ser usado, ou devolve None se está tudo pronto."""
     if not _pasta().is_dir():
+        if _baixando:
+            return "o modelo BERT está sendo baixado em segundo plano, aguarde."
+        if _erro_download:
+            return f"falha ao baixar o modelo BERT: {_erro_download}"
         return "a pasta do modelo não foi encontrada (veja a seção Modo BERT do README)."
     faltando = [
         nome
@@ -72,3 +117,8 @@ def estimar(texto):
             bruto = modelo(**entrada).logits[0].numpy() * 200
     notas = np.clip(np.round(bruto / 40) * 40, 0, 200).astype(int)
     return dict(zip(COMPETENCIAS, notas.tolist())), cortada
+
+
+if not _pasta().is_dir() and "BERT_DIR" not in os.environ:
+    _baixando = True
+    threading.Thread(target=_baixar, daemon=True).start()

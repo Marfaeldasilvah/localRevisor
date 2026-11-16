@@ -73,7 +73,7 @@ Ele precisa de dependências a mais (o `torch` é grande) e dos arquivos do mode
 
    No Linux, para evitar baixar pacotes de GPU desnecessários, instale antes a versão para CPU do `torch`: `pip install torch==2.15.0 --index-url https://download.pytorch.org/whl/cpu`.
 
-2. Baixe o modelo treinado: **[link do modelo: a definir]**. Extraia a pasta em `modelos/bertimbau_enem/`, que deve conter `config.json`, `model.safetensors`, `tokenizer.json` e `tokenizer_config.json`.
+2. O modelo base é baixado automaticamente do Hugging Face (`neuralmind/bert-base-portuguese-cased`) na primeira execução, em `modelos/bertimbau_enem/`. Para baixar manualmente, rode `curl -fL -O` em cada arquivo de `https://huggingface.co/neuralmind/bert-base-portuguese-cased/resolve/main/` (`config.json`, `pytorch_model.bin`, `tokenizer_config.json`, `vocab.txt`, `special_tokens_map.json`, `added_tokens.json`) e coloque-os nessa pasta. Se você definir `BERT_DIR`, o download automático não é feito.
 
 3. Inicie o app, abra as **Configurações** e marque a opção **"Usar o BERTimbau para estimar as notas"**. Clique em **Salvar**. A opção só fica disponível quando a pasta do modelo e as dependências estão presentes, e a própria tela explica o que falta. Desmarcada, o app funciona normalmente, só com a IA escolhida.
 
