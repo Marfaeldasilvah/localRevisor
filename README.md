@@ -1,106 +1,193 @@
-Como rodar:
-
- ```nix develop -c .venv/bin/flask --app src.main run --debug```
-
-ou:
-
-```docker compose up```
-
 # localRevisor
 
-Corretor de redações open source, com **modelo de IA configurável**: você escolhe qual IA usar (em nuvem ou local) e, opcionalmente, ativa um modelo treinado (BERTimbau) para estimar as notas por competência do Enem.
+Corretor de redações do ENEM **local-first**, open source e com **modelo de IA
+configurável**. Você escolhe o provedor (nuvem ou local), envia a redação e recebe
+uma estimativa de nota, a decomposição por competência e os pontos de melhoria.
 
-> O resultado é uma **estimativa para fins de estudo**. Ele não substitui a correção feita por professores nem a nota oficial.
+> **Estimativa para estudo.** O resultado não substitui a correção de um professor
+> nem a nota oficial do ENEM.
 
 ## O que ele faz
 
-- Recebe a redação por texto colado ou por arquivo (PDF, imagem, Markdown ou texto) e o tema.
-- Devolve uma explicação e os pontos de melhoria, e guarda o histórico das correções.
-- Funciona com qualquer serviço compatível com a API da OpenAI, inclusive modelos locais (por exemplo, com o Ollama).
-- **Modo BERT (opcional):** um modelo BERTimbau, treinado com redações corrigidas por professores, estima as notas de C1 a C5. A IA escolhida só escreve a explicação de cada nota, citando trechos da redação.
+- Recebe a redação por **texto colado** ou por arquivo (**PDF, imagem, Markdown ou TXT**).
+- Estima as cinco competências do ENEM (C1–C5), a nota final (soma) e uma explicação
+  com erros e sugestões.
+- Guarda o histórico local em SQLite, com o texto usado na correção, o modelo, o
+  modo (IA ou BERT + IA) e a duração.
+- Permite reabrir, tentar novamente e excluir correções.
+- **Modo BERT opcional:** um BERTimbau ajustado estima C1–C5 e a IA escolhida
+  apenas explica cada nota. O modo falha fechado: se o checkpoint não for válido,
+  o app não inventa nota.
+- Funciona com qualquer serviço compatível com a API da OpenAI, incluindo Ollama,
+  vLLM, LM Studio e OpenCode Go.
 
 ## Requisitos
 
-- Python 3.13 ou superior.
-- Uma IA compatível com a API da OpenAI (chave de um provedor ou um servidor local, como o Ollama).
+- **Python 3.13 ou superior.**
+- Uma IA compatível com a API da OpenAI (chave de um provedor ou servidor local).
+- **ffmpeg** para converter imagens WebP/GIF (e formatos que o modelo de visão não
+  aceite). PDFs digitais não precisam de ffmpeg.
 
 ## Instalação
 
-```
+```bash
 python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env             # opcional; a tela de Configurações também salva
 ```
 
-Ative o ambiente virtual:
+No Linux, se quiser o modo BERT sem baixar pacotes de GPU:
 
-- Windows (PowerShell): `.venv\Scripts\activate`
-- Linux e macOS: `source .venv/bin/activate`
-
-Depois instale as dependências:
-
-```
-pip install -r requeriments.txt
+```bash
+pip install torch==2.15.0 --index-url https://download.pytorch.org/whl/cpu
+pip install -r requirements-bert.txt
 ```
 
 ## Executando
 
-```
+```bash
 python -m flask --app src.main run --debug
 ```
 
-Abra `http://127.0.0.1:5000`. Quem usa Nix pode rodar `nix develop -c .venv/bin/flask --app src.main run --debug`.
+Abra `http://127.0.0.1:5000`. Quem usa Nix pode rodar
+`nix develop -c .venv/bin/flask --app src.main run --debug` (veja a seção Nix).
 
-## Configurando a IA
+## Primeira execução
 
-Na tela de **Configurações**:
+1. Abra **Configurações**.
+2. Informe a **URL base** do provedor e a **chave**. Para Ollama, use
+   `http://localhost:11434/v1` e uma chave qualquer, como `ollama`.
+3. Clique em **Conectar** e escolha (ou digite) o **modelo de correção**. Para fotos/PDFs escaneados, informe também o **modelo de imagem**.
+4. Clique em **Salvar**.
 
-1. Informe a **URL base** do serviço (um endereço compatível com a API da OpenAI) e a **chave da API**.
-2. Clique em **Conectar** e escolha o **modelo de correção** na lista.
-3. Clique em **Salvar**.
-
-A chave é gravada no arquivo `.env`, que o Git ignora. Nunca envie esse arquivo para o repositório.
-
-**Usando um modelo local (Ollama):** instale o Ollama, baixe um modelo (`ollama pull NOME-DO-MODELO`) e use a URL base `http://localhost:11434/v1`. A chave pode ser qualquer texto, como `ollama`.
+O envio de redações fica bloqueado enquanto não houver modelo configurado. A chave
+é gravada em `.env` com permissão `600` quando você usa o app localmente. No Docker,
+prefira definir `OPENAI_API_KEY` no compose: o `.env` de dentro do container pode
+não sobreviver a uma recriação.
 
 ## Modo BERT (opcional)
 
-Ele precisa de dependências a mais (o `torch` é grande) e dos arquivos do modelo treinado.
+O modo BERT precisa de um checkpoint **ajustado para as cinco competências**:
 
-1. Instale as dependências do modo BERT:
+- arquitetura `BertForSequenceClassification`;
+- `num_labels = 5` com `id2label` em C1–C5 ou `LABEL_0`..`LABEL_4` na ordem C1–C5;
+- pesos e tokenizador em `modelos/bertimbau_enem/` (ou em `BERT_DIR`).
 
-   ```
-   pip install -r requirements-bert.txt
-   ```
+O BERTimbau base do Hugging Face **não serve**: ele não tem a cabeça treinada e as
+notas seriam aleatórias. O app detecta isso, mantém a opção desativada e explica o
+motivo. Checkpoints com 2 saídas também são rejeitados.
 
-   No Linux, para evitar baixar pacotes de GPU desnecessários, instale antes a versão para CPU do `torch`: `pip install torch==2.15.0 --index-url https://download.pytorch.org/whl/cpu`.
+Para ligar, marque **“Usar o BERTimbau para estimar as notas”** em Configurações.
+Se o modo estiver ligado e o checkpoint/dependências sumirem, a correção falha com
+uma mensagem clara em vez de cair silenciosamente no modo só-IA.
 
-2. O modelo base é baixado automaticamente do Hugging Face (`neuralmind/bert-base-portuguese-cased`) na primeira execução, em `modelos/bertimbau_enem/`. Para baixar manualmente, rode `curl -fL -O` em cada arquivo de `https://huggingface.co/neuralmind/bert-base-portuguese-cased/resolve/main/` (`config.json`, `pytorch_model.bin`, `tokenizer_config.json`, `vocab.txt`, `special_tokens_map.json`, `added_tokens.json`) e coloque-os nessa pasta. Se você definir `BERT_DIR`, o download automático não é feito.
+**Limites conhecidos:** o modelo lê no máximo 512 tokens; redações mais longas são
+cortadas no final e o app mostra um aviso. Temas muito diferentes do corpus de
+treino podem ter desempenho pior.
 
-3. Inicie o app, abra as **Configurações** e marque a opção **"Usar o BERTimbau para estimar as notas"**. Clique em **Salvar**. A opção só fica disponível quando a pasta do modelo e as dependências estão presentes, e a própria tela explica o que falta. Desmarcada, o app funciona normalmente, só com a IA escolhida.
+### Verificação do checkpoint
 
-   Se preferir, a variável `USE_BERT=1` no arquivo `.env` define o valor inicial da opção na primeira execução. Depois disso, quem manda é a opção na tela de Configurações.
+O script compara as notas locais com as previsões do Colab e com as notas de
+professores:
 
-**Como funciona:** o BERT lê a redação e estima a nota de cada competência (de 0 a 200, em faixas de 40). A IA recebe essas notas e escreve a explicação de cada uma. A nota final é a soma das cinco competências.
-
-**Limites conhecidos:**
-
-- O modelo lê no máximo 512 "pedaços" de palavra. Redações mais longas são cortadas no final, e o app mostra um aviso.
-- O modelo foi treinado com um corpus público de redações (Essay-BR). Temas muito diferentes dos do treino podem ter desempenho pior.
-- A qualidade das explicações escritas pela IA depende do modelo escolhido e **pode conter imprecisões**.
-
-## Estrutura do projeto
-
-```
-src/                   aplicação Flask (main.py, bert_notas.py, templates e arquivos estáticos)
-modelos/               modelo BERT treinado (não vai para o Git)
-data/                  banco de dados e arquivos enviados (não vai para o Git)
-requeriments.txt       dependências do app
-requirements-bert.txt  dependências do modo BERT (opcional)
+```bash
+python verificar_bert_local.py valid.csv bert_valid_previsoes.csv 50
 ```
 
-## Docker
+`valid.csv` não vai para o repositório porque contém redações. O CSV versionado
+`bert_valid_previsoes.csv` tem apenas `id` e C1–C5. O script usa a biblioteca
+padrão, mas carregar o modelo exige `requirements-bert.txt`.
 
-O repositório inclui `Dockerfile` e `docker-compose.yml`, mas eles **ainda não foram validados** nesta versão. A forma de execução testada é a instalação local descrita acima.
+## Testes
+
+```bash
+python -m unittest discover -s tests -t . -v
+```
+
+A suíte cobre parsing e validação do JSON, faixas de nota, migração do banco,
+paginação, CSRF, upload, BERT fail-closed, worker e persistência. O CI roda lint
+(`ruff`), compilação e testes em cada push/PR.
+
+## Dados, segurança e privacidade
+
+- Banco e uploads ficam em `data/` (SQLite + arquivos); o histórico guarda o texto
+  usado na correção para que a revisão não dependa do arquivo original.
+- O app é **single-user e local**: não tem login. Não exponha na rede sem
+  autenticação e HTTPS.
+- Os POSTs têm CSRF, uploads têm limite de tamanho (20 MB por padrão) e o tipo do
+  arquivo é validado pelo conteúdo, não só pela extensão.
+- O Docker publica apenas em `127.0.0.1:5000` por padrão.
+- A chave nunca é gravada no banco; fica no `.env` (600) ou em variável de ambiente.
+- **Backup é manual:** copie `data/app.db` e `data/uploads/` com o app parado. A
+  exclusão de uma correção remove o registro e o arquivo correspondente.
+- Nenhuma telemetria é enviada pelo app. A redação vai apenas para o provedor que
+  você configurar.
+
+## Variáveis de ambiente
+
+| Variável | Padrão | Efeito |
+|---|---|---|
+| `OPENAI_API_KEY` | vazio | Chave do provedor. Também pode ser salva pela tela. |
+| `OPENAI_BASE_URL` | `https://api.deepseek.com` | URL inicial; depois a tela manda. |
+| `OPENAI_MODEL` | vazio | Modelo de correção inicial. |
+| `OPENAI_IMAGE_MODEL` | vazio | Modelo de visão inicial. |
+| `USE_BERT` | `0` | Valor inicial do modo BERT; depois a tela manda. |
+| `BERT_DIR` | `modelos/bertimbau_enem` | Pasta do checkpoint ajustado. |
+| `LOCALREVISOR_DATA_DIR` | `data/` | Onde ficam banco/uploads/segredo. |
+| `LOCALREVISOR_MAX_UPLOAD_BYTES` | `20971520` | Limite de upload. |
+| `LOCALREVISOR_MAX_WORKERS` | `2` | Correções simultâneas. |
+| `SECRET_KEY` | gerado em `data/.secret` | Segredo das sessões/CSRF. |
+
+## Estrutura
+
+```
+src/main.py            rotas Flask, CSRF, upload e configuração
+src/db.py              SQLite, migrações e paginação
+src/grading.py         prompts, contrato JSON, OpenAI e BERT
+src/worker.py          execução em segundo plano
+src/files.py           validação e leitura de arquivos
+src/bert_notas.py      estimativa opcional com BERTimbau
+src/secrets_store.py   chave/.env e segredo de sessão
+tests/                 suíte de testes
+data/                  banco, uploads e segredo (fora do Git)
+modelos/               checkpoint BERT (fora do Git)
+```
+
+## Docker (experimental)
+
+O `Dockerfile` e o `docker-compose.yml` são **experimentais** e usam o servidor de
+desenvolvimento do Flask, não um WSGI de produção.
+
+```bash
+export OPENAI_API_KEY=...
+docker compose up
+```
+
+A porta fica exposta só no loopback (`127.0.0.1:5000`). Para persistir a chave sem
+passar pelo `.env` interno, defina `OPENAI_API_KEY` no ambiente/compose. O
+`./data` é montado como volume; `./modelos` é somente leitura.
+
+## Nix (experimental)
+
+O `flake.nix` é um `devShell` para `x86_64-linux` e instala `torch` mesmo sem o
+modo BERT. Ele é um atalho de desenvolvimento, não um pacote reproduzível:
+
+```bash
+nix develop
+python -m flask --app src.main run --debug
+```
+
+## Limitações
+
+- A nota é uma estimativa; modelos diferentes podem discordar.
+- PDFs escaneados dependem de o modelo de visão aceitar PDF; se falhar, envie a
+  página como imagem.
+- O modo BERT só é tão bom quanto o checkpoint; sem um checkpoint ajustado e
+  validado, ele fica desativado.
+- A interface é em português e otimizada para uso pessoal.
 
 ## Licença
 
-A definir.
+MIT. Veja [LICENSE](LICENSE). Para contribuir, leia [CONTRIBUTING.md](CONTRIBUTING.md);
+para o modelo de segurança, veja [SECURITY.md](SECURITY.md). O backlog vivo fica em [TASKS.md](TASKS.md).

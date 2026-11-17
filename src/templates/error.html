@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Erro {{ code }} - localᴚevisor{% endblock %}
+{% block heading %}Erro {{ code }}{% endblock %}
+
+{% block content %}
+<section class="card card--error" role="alert">
+  <p>{{ message }}</p>
+</section>
+<p><a class="button button--outlined" href="{{ url_for('index') }}">Voltar ao início</a></p>
+{% endblock %}

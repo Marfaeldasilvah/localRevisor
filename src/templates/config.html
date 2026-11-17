@@ -1,146 +1,146 @@
-<!doctype html>
-<html lang="pt-BR">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Configurações - localᴚevisor</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
-  </head>
-  <body>
-    <header class="app-bar">
-      <div class="app-bar__leading">
-        <a class="icon-button" href="{{ url_for('index') }}" aria-label="Voltar">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z" />
-          </svg>
-        </a>
-        <h1>Configurações</h1>
-      </div>
-    </header>
+{% extends "base.html" %}
+{% block title %}Configurações - localᴚevisor{% endblock %}
+{% block heading %}Configurações{% endblock %}
 
-    <main>
-      {% if message %}
-      <p class="card">{{ message }}</p>
+{% block content %}
+{% if setup %}
+<p class="card setup-banner" role="alert">
+  <strong>Primeiro passo:</strong> informe a URL base, conecte o provedor e escolha
+  um modelo de correção. Sem isso, o envio de redações fica bloqueado.
+</p>
+{% endif %}
+
+<form class="form" method="post">
+  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+
+  <h2>API</h2>
+
+  <div class="field">
+    <label for="base_url">URL base</label>
+    <input
+      id="base_url"
+      name="base_url"
+      type="url"
+      value="{{ base_url }}"
+      placeholder="https://api.deepseek.com"
+      required
+    />
+    <span class="field__hint">Endpoint compatível com a API da OpenAI.</span>
+  </div>
+
+  <div class="field">
+    <label for="api_key">Chave da API</label>
+    <input
+      id="api_key"
+      name="api_key"
+      type="password"
+      autocomplete="off"
+      placeholder="{% if key_configured %}Nova chave (opcional){% else %}Cole a chave{% endif %}"
+    />
+    <span class="field__hint">
+      {% if key_configured %}
+      Chave configurada no ambiente/.env.
+      {% else %}
+      Nenhuma chave configurada. Para Ollama e endpoints locais, qualquer texto
+      serve; use <code>ollama</code>.
       {% endif %}
+      A chave é gravada em <code>.env</code> com permissão 600. Em Docker, prefira
+      definir <code>OPENAI_API_KEY</code> no compose para persistir.
+    </span>
+  </div>
 
-      <form class="form" method="post">
-        <h2>API</h2>
+  <div class="form__actions">
+    <button class="button button--outlined" type="submit" name="action" value="connect">
+      Conectar
+    </button>
+  </div>
 
-        <div class="field">
-          <label for="base_url">URL base</label>
-          <input
-            id="base_url"
-            name="base_url"
-            type="url"
-            value="{{ base_url }}"
-            required
-          />
-          <span class="field__hint">Endpoint compatível com a API da OpenAI.</span>
-        </div>
+  <h2>Modelo de correção</h2>
+  <div class="field">
+    <label for="correction_model">Modelo</label>
+    <input
+      id="correction_model"
+      name="correction_model"
+      type="text"
+      value="{{ correction_model }}"
+      placeholder="Conecte ou digite o nome do modelo"
+      list="correction-models"
+      required
+    />
+    <datalist id="correction-models">
+      {% for option in correction_options %}
+      <option value="{{ option }}"></option>
+      {% endfor %}
+    </datalist>
+    <span class="field__hint">
+      A lista vem da conexão; se o provedor não listar modelos, digite o nome.
+    </span>
+  </div>
 
-        <div class="field">
-          <label for="api_key">Chave da API</label>
-          <input
-            id="api_key"
-            name="api_key"
-            type="password"
-            autocomplete="off"
-            placeholder="Usar OPENAI_API_KEY"
-          />
-          <span class="field__hint">
-            {% if key_configured %}
-            Chave configurada.
-            {% elif key_entered %}
-            Chave já salva.
-            {% else %}
-            Nenhuma chave configurada.
-            {% endif %}
-            Ao salvar em localhost, grava em .env (ignorado pelo git).
-          </span>
-        </div>
+  <h2>Modelo de imagem</h2>
+  <div class="field">
+    <label for="image_model">Modelo</label>
+    <input
+      id="image_model"
+      name="image_model"
+      type="text"
+      value="{{ image_model }}"
+      placeholder="Opcional para texto/PDF digital"
+      list="image-models"
+    />
+    <datalist id="image-models">
+      {% for option in image_options %}
+      <option value="{{ option }}"></option>
+      {% endfor %}
+    </datalist>
+    <span class="field__hint">
+      Opcional para texto/PDF digital; necessário para fotos e PDFs escaneados.
+      Precisa aceitar imagens.
+    </span>
+  </div>
 
-        <div class="form__actions">
-          <button class="button button--outlined" type="submit" name="action" value="connect">
-            Conectar
-          </button>
-        </div>
+  <h2>Notas por competência</h2>
+  <div class="field">
+    <label class="check">
+      <input
+        type="checkbox"
+        name="use_bert"
+        value="1"
+        {% if use_bert %}checked{% endif %}
+        {% if not bert_available %}disabled{% endif %}
+      />
+      <span>Usar o BERTimbau para estimar as notas</span>
+    </label>
+    <span class="field__hint">
+      {% if bert_available %}
+      Ligado: o BERTimbau estima C1–C5 e a IA explica cada nota. Desligado: a IA
+      faz a correção completa.
+      {% else %}
+      Indisponível: {{ bert_reason }}
+      {% endif %}
+    </span>
+  </div>
 
-        <h2>API -- Modelo de correção</h2>
-        <div class="field">
-          <select
-            name="correction_model"
-            aria-label="Modelo de correção"
-            {% if correction_options %}required{% endif %}
-          >
-            {% if not correction_options %}
-            <option value="" selected>Conecte para listar modelos</option>
-            {% endif %}
-            {% for option in correction_options %}
-            <option value="{{ option }}" {% if option == correction_model %}selected{% endif %}>
-              {{ option }}
-            </option>
-            {% endfor %}
-          </select>
-          <span class="field__hint">
-            {% if correction_options %}
-            Lista carregada pela conexão.
-            {% else %}
-            Conecte-se para carregar a lista.
-            {% endif %}
-          </span>
-        </div>
+  <div class="form__actions">
+    <button class="button" type="submit" name="action" value="save">Salvar</button>
+  </div>
+</form>
 
-        <h2>API -- Modelo de imagem</h2>
-        <div class="field">
-          <select
-            name="image_model"
-            aria-label="Modelo de imagem"
-            {% if image_options %}required{% endif %}
-          >
-            {% if not image_options %}
-            <option value="" selected>Conecte para listar modelos</option>
-            {% endif %}
-            {% for option in image_options %}
-            <option value="{{ option }}" {% if option == image_model %}selected{% endif %}>
-              {{ option }}
-            </option>
-            {% endfor %}
-          </select>
-          <span class="field__hint">
-            {% if image_options %}
-            Lista carregada pela conexão.
-            {% else %}
-            Conecte-se para carregar a lista.
-            {% endif %}
-          </span>
-        </div>
+{% if key_configured %}
+<form
+  method="post"
+  class="form form--compact"
+  data-confirm="Remover a chave da API salva?"
+>
+  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+  <button class="button button--danger button--small" type="submit" name="action" value="remove_key">
+    Remover chave salva
+  </button>
+</form>
+{% endif %}
 
-        <h2>Notas por competência</h2>
-        <div class="field">
-          <label class="check">
-            <input
-              type="checkbox"
-              name="use_bert"
-              value="1"
-              {% if use_bert %}checked{% endif %}
-              {% if not bert_available %}disabled{% endif %}
-            />
-            <span>Usar o BERTimbau para estimar as notas</span>
-          </label>
-          <span class="field__hint">
-            {% if bert_available %}
-            Ligado: o BERTimbau estima as notas de C1 a C5 e a IA escolhida explica cada nota.
-            Desligado: a IA escolhida faz toda a correção.
-            {% else %}
-            Indisponível: {{ bert_reason }}
-            {% endif %}
-          </span>
-        </div>
-
-        <div class="form__actions">
-          <button class="button" type="submit" name="action" value="save">Salvar</button>
-        </div>
-      </form>
-    </main>
-  </body>
-</html>
+<p class="field__hint">
+  Esta instância foi feita para rodar na sua máquina. Não a exponha na rede sem
+  autenticação e HTTPS.
+</p>
+{% endblock %}

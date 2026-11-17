@@ -1,102 +1,63 @@
-<!doctype html>
-<html lang="pt-BR">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Nova correção - localᴚevisor</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
-  </head>
-  <body>
-    <header class="app-bar">
-      <div class="app-bar__leading">
-        <a class="icon-button" href="{{ url_for('index') }}" aria-label="Voltar">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z" />
-          </svg>
-        </a>
-        <h1>Nova correção</h1>
-      </div>
-    </header>
+{% extends "base.html" %}
+{% block title %}Nova correção - localᴚevisor{% endblock %}
+{% block heading %}Nova correção{% endblock %}
 
-    <main>
-      <form class="upload-form" method="post" enctype="multipart/form-data">
-        <div class="segmented">
-          <label class="segment">
-            <input type="radio" name="source" value="file" checked />
-            <span>Arquivo</span>
-          </label>
-          <label class="segment">
-            <input type="radio" name="source" value="text" />
-            <span>Texto</span>
-          </label>
-        </div>
+{% block content %}
+{% if error %}
+<p class="card card--error" role="alert">{{ error }}</p>
+{% endif %}
 
-        <label class="dropzone" id="dropzone">
-          <input id="file" type="file" name="file" accept=".pdf,image/*,.md,.txt" />
-          <span class="dropzone__title">Escolher arquivo</span>
-          <span class="dropzone__hint">PDF, imagem, Markdown ou texto</span>
-        </label>
+<form class="upload-form" method="post" enctype="multipart/form-data">
+  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
 
-        <div class="field" id="text-field" hidden>
-          <textarea
-            class="textarea"
-            id="text"
-            name="text"
-            placeholder="Cole sua redação aqui"
-            aria-label="Texto"
-          ></textarea>
-        </div>
+  <div class="segmented" role="group" aria-label="Origem do texto">
+    <label class="segment">
+      <input type="radio" name="source" value="file" {% if source != "text" %}checked{% endif %} />
+      <span>Arquivo</span>
+    </label>
+    <label class="segment">
+      <input type="radio" name="source" value="text" {% if source == "text" %}checked{% endif %} />
+      <span>Texto</span>
+    </label>
+  </div>
 
-        <div class="form__actions">
-          <input
-            class="input"
-            id="theme"
-            name="theme"
-            type="text"
-            placeholder="Tema"
-            aria-label="Tema"
-            required
-          />
-          <button class="button" id="submit" type="submit">Enviar</button>
-        </div>
-      </form>
+  <label class="dropzone" id="dropzone" {% if source == "text" %}hidden{% endif %}>
+    <input id="file" type="file" name="file" accept=".pdf,image/*,.md,.txt" />
+    <span class="dropzone__title">Escolher arquivo</span>
+    <span class="dropzone__hint">PDF, imagem, Markdown ou texto · até {{ max_upload_mb }} MB</span>
+  </label>
 
-      {% if error %}
-      <p class="card card--error">{{ error }}</p>
-      {% endif %}
+  <div class="field" id="text-field" {% if source != "text" %}hidden{% endif %}>
+    <label for="text">Texto da redação</label>
+    <textarea
+      class="textarea"
+      id="text"
+      name="text"
+      placeholder="Cole sua redação aqui"
+    ></textarea>
+  </div>
 
-      <script>
-        const sourceInputs = document.querySelectorAll('input[name="source"]');
-        const dropzone = document.getElementById("dropzone");
-        const textField = document.getElementById("text-field");
-        const textInput = document.getElementById("text");
-        const fileInput = document.getElementById("file");
-        const themeInput = document.getElementById("theme");
-        const submitButton = document.getElementById("submit");
+  <div class="form__actions">
+    <input
+      class="input"
+      id="theme"
+      name="theme"
+      type="text"
+      placeholder="Tema"
+      aria-label="Tema"
+      value="{{ theme }}"
+      required
+    />
+    <button class="button" id="submit" type="submit">Enviar</button>
+  </div>
 
-        function isTextMode() {
-          return document.querySelector('input[name="source"]:checked').value === "text";
-        }
+  <p class="field__hint">
+    A correção é uma estimativa para estudo. O texto é enviado apenas ao provedor
+    de IA que você configurar.
+  </p>
+</form>
+{% endblock %}
 
-        function syncSubmit() {
-          const hasContent = isTextMode()
-            ? !!textInput.value.trim()
-            : !!fileInput.files.length;
-          submitButton.disabled = !hasContent || !themeInput.value.trim();
-        }
-
-        function syncSource() {
-          dropzone.hidden = isTextMode();
-          textField.hidden = !isTextMode();
-          syncSubmit();
-        }
-
-        sourceInputs.forEach((input) => input.addEventListener("change", syncSource));
-        fileInput.addEventListener("change", syncSubmit);
-        textInput.addEventListener("input", syncSubmit);
-        themeInput.addEventListener("input", syncSubmit);
-        syncSource();
-      </script>
-    </main>
-  </body>
-</html>
+{% block scripts %}
+<script src="{{ url_for('static', filename='upload.js') }}" defer></script>
+{% endblock %}

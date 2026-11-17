@@ -32,7 +32,6 @@
         ] ++ (with pkgs; [
           ruff
           ffmpeg
-          curl
           uv
           vscode-html-languageserver
           vscode-css-languageserver

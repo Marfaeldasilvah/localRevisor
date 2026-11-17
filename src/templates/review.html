@@ -1,50 +1,111 @@
-<!doctype html>
-<html lang="pt-BR">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Revisão - localᴚevisor</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
-  </head>
-  <body>
-    <header class="app-bar">
-      <div class="app-bar__leading">
-        <a class="icon-button" href="{{ url_for('index') }}" aria-label="Voltar">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z" />
-          </svg>
-        </a>
-        <h1>Revisão</h1>
-      </div>
-    </header>
+{% extends "base.html" %}
+{% block title %}Revisão - localᴚevisor{% endblock %}
+{% block heading %}Revisão{% endblock %}
 
-    <main>
-      <h2>{{ correction["theme"] }}</h2>
-      <p class="review__meta">
-        {{ correction["filename"] }} · {{ correction["created_at"] }}
-      </p>
+{% block content %}
+{% set labels = {
+  "C1": "Norma culta",
+  "C2": "Tema e repertório",
+  "C3": "Argumentação",
+  "C4": "Coesão",
+  "C5": "Intervenção"
+} %}
 
-      {% if correction["status"] == "erro" %}
-      <p class="card card--error">
-        A correção falhou. Veja os detalhes em “Erros apontados”.
-      </p>
-      {% elif correction["status"] == "pendente" %}
-      <p class="card">Correção ainda não processada.</p>
-      {% endif %}
+<h2>{{ correction["theme"] }}</h2>
+<p class="review__meta">
+  {{ correction["filename"] }} · {{ correction["created_at"] }} ·
+  <span class="status status--{{ correction['status'] }}">{{ status_label }}</span>
+  {% if correction["score_mode"] == "bert+llm" %}· BERT + IA{% elif correction["score_mode"] == "llm" %}· IA{% endif %}
+</p>
 
-      <h2>Explicação</h2>
-      {% if correction["explanation"] %}
-      <p class="card review__text">{{ correction["explanation"] }}</p>
-      {% else %}
-      <p class="card">Sem explicação registrada.</p>
-      {% endif %}
+{% if correction["status"] in ("erro", "interrompido", "pendente") %}
+<section class="card {% if correction['status'] != 'pendente' %}card--error{% endif %}" role="alert">
+  <strong>
+    {% if correction["status"] == "interrompido" %}Correção interrompida.
+    {% elif correction["status"] == "pendente" %}Correção ainda não processada.
+    {% else %}A correção falhou.{% endif %}
+  </strong>
+  {% if correction["errors"] %}
+  <p class="review__text">{{ correction["errors"] }}</p>
+  {% elif correction["status"] == "pendente" %}
+  <p class="review__text">Esta correção é de uma versão antiga; tente novamente.</p>
+  {% endif %}
+  <form method="post" action="{{ url_for('retry', correction_id=correction['id']) }}">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+    <button class="button button--outlined button--small" type="submit">Tentar novamente</button>
+  </form>
+</section>
+{% endif %}
 
-      <h2>Erros apontados</h2>
-      {% if correction["errors"] %}
-      <p class="card review__text">{{ correction["errors"] }}</p>
-      {% else %}
-      <p class="card">Nenhum erro registrado.</p>
-      {% endif %}
-    </main>
-  </body>
-</html>
+<section class="score-hero" aria-label="Nota final">
+  {% if note is not none %}
+  <span class="score-hero__value">{{ note }}</span><span class="score-hero__max">/1000</span>
+  {% else %}
+  <span class="score-hero__empty">Nota indisponível</span>
+  {% endif %}
+</section>
+
+{% if scores %}
+<h2>Competências</h2>
+<div class="score-grid">
+  {% for name in ("C1", "C2", "C3", "C4", "C5") %}
+  {% if name in scores %}
+  <div class="score-card">
+    <span class="score-card__label">{{ name }}</span>
+    <span class="score-card__value">{{ scores[name] }}</span>
+    <span class="score-card__desc">{{ labels[name] }}</span>
+  </div>
+  {% endif %}
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if correction["truncated"] %}
+<p class="card card--warning" role="status">
+  A redação é longa: o modelo de notas leu apenas o início do texto.
+</p>
+{% endif %}
+
+<h2>Explicação</h2>
+{% if correction["explanation"] %}
+<div class="card review__text">{{ correction["explanation"] }}</div>
+{% else %}
+<div class="card">Sem explicação registrada.</div>
+{% endif %}
+
+<h2>Erros apontados</h2>
+{% if correction["errors"] and correction["status"] == "corrigido" %}
+<div class="card review__text">{{ correction["errors"] }}</div>
+{% elif correction["status"] == "corrigido" %}
+<div class="card">Nenhum erro registrado.</div>
+{% endif %}
+
+{% if correction["source_text"] %}
+<details class="source-box">
+  <summary>Texto usado na correção</summary>
+  <pre class="source-text">{{ correction["source_text"] }}</pre>
+</details>
+{% else %}
+<p class="field__hint">
+  O texto-fonte não foi armazenado nesta correção (formato antigo).
+</p>
+{% endif %}
+
+{% if correction["model"] or correction["provider"] %}
+<h2>Detalhes</h2>
+<dl class="meta-grid">
+  {% if correction["model"] %}<dt>Modelo</dt><dd>{{ correction["model"] }}</dd>{% endif %}
+  {% if correction["provider"] %}<dt>Provedor</dt><dd>{{ correction["provider"] }}</dd>{% endif %}
+  {% if correction["prompt_version"] %}<dt>Prompt</dt><dd>{{ correction["prompt_version"] }}</dd>{% endif %}
+  {% if correction["duration_ms"] %}<dt>Duração</dt><dd>{{ (correction["duration_ms"] / 1000) | round(1) }} s</dd>{% endif %}
+  {% if correction["tokens_in"] or correction["tokens_out"] %}
+  <dt>Tokens</dt><dd>{{ correction["tokens_in"] }} entrada / {{ correction["tokens_out"] }} saída</dd>
+  {% endif %}
+</dl>
+{% endif %}
+
+<p class="disclaimer">
+  Esta é uma estimativa para fins de estudo. Não substitui a correção de um
+  professor nem a nota oficial do ENEM.
+</p>
+{% endblock %}

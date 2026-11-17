@@ -1116,9 +1116,9 @@
             O texto só vai para o provedor que <strong>você</strong> configurar.
           </p>
           <ul class="checks reveal" style="--d: 0.2s">
-            <li><span><b>Roda onde quiser</b> — Docker, Nix ou Python direto na sua máquina.</span></li>
+            <li><span><b>Roda onde quiser</b> — Python direto é o caminho testado; Docker e Nix são experimentais.</span></li>
             <li><span><b>Chave no seu .env</b> — não em um painel de terceiros.</span></li>
-            <li><span><b>Histórico local</b> — SQLite no seu disco, com backup e exclusão por sua conta.</span></li>
+            <li><span><b>Histórico local</b> — SQLite no seu disco, com backup manual e exclusão por sua conta.</span></li>
             <li><span><b>Sem telemetria</b> — nenhum dado nosso, nenhuma conta, nenhum rastreio.</span></li>
             <li><span><b>Fork de verdade</b> — audite, adapte os critérios e contribua de volta.</span></li>
             <li><span><b>Sem fidelidade</b> — pare quando quiser. O código continua sendo seu.</span></li>
@@ -1126,10 +1126,11 @@
           <div class="terminal reveal" style="--d: 0.3s">
             <div class="terminal__bar" aria-hidden="true"><i></i><i></i><i></i></div>
             <pre><span class="prompt">$</span> docker compose up
-<span class="out">→ LocalRevisor em</span> <span class="hl">http://localhost:5000</span></pre>
+<span class="out"># experimental: defina OPENAI_API_KEY no ambiente</span>
+<span class="out">→ LocalRevisor em</span> <span class="hl">http://127.0.0.1:5000</span></pre>
           </div>
           <p class="lead reveal" style="--d: 0.38s">
-            Do zero ao primeiro corretor em dois comandos.
+            Python direto é o caminho testado; Docker e Nix são atalhos experimentais.
           </p>
         </div>
       </section>
@@ -1187,7 +1188,8 @@
             <span>$</span> docker compose up
           </p>
           <p class="lead reveal" style="--d: 0.4s">
-            Leia o código, troque o modelo, adapte os critérios. <strong>É seu.</strong>
+            Leia o código, troque o modelo, adapte os critérios. <strong>É seu.</strong><br />
+            Docker e Nix são experimentais; Python direto é o caminho testado.
           </p>
         </div>
       </section>

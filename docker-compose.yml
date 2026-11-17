@@ -4,12 +4,16 @@ services:
       context: .
       args:
         INSTALAR_BERT: ${USE_BERT:-0}
+    # Publica apenas no loopback: o app não tem autenticação.
     ports:
-      - "5000:5000"
+      - "127.0.0.1:5000:5000"
     environment:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.deepseek.com}
+      OPENAI_MODEL: ${OPENAI_MODEL:-}
+      OPENAI_IMAGE_MODEL: ${OPENAI_IMAGE_MODEL:-}
       USE_BERT: ${USE_BERT:-0}
+      SECRET_KEY: ${SECRET_KEY:-}
     volumes:
       - ./data:/app/data
       - ./modelos:/app/modelos:ro

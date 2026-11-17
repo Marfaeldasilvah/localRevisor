@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}localᴚevisor{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  </head>
+  <body>
+    <header class="app-bar">
+      <div class="app-bar__leading">
+        {% if back_url %}
+        <a class="icon-button" href="{{ back_url }}" aria-label="Voltar">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z" />
+          </svg>
+        </a>
+        {% endif %}
+        <h1>{% block heading %}localᴚevisor{% endblock %}</h1>
+      </div>
+      {% block app_bar_actions %}{% endblock %}
+    </header>
+
+    <main>
+      {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+      <div class="flash-stack">
+        {% for category, message in messages %}
+        <p
+          class="flash flash--{{ category }}"
+          role="{{ 'alert' if category in ('error', 'warning') else 'status' }}"
+        >
+          {{ message }}
+        </p>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% endwith %}
+
+      {% block content %}{% endblock %}
+    </main>
+
+    <script src="{{ url_for('static', filename='app.js') }}" defer></script>
+    {% block scripts %}{% endblock %}
+  </body>
+</html>
