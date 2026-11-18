@@ -281,7 +281,16 @@ def upload():
         back_url=url_for("index"),
         max_upload_mb=max(1, paths.MAX_UPLOAD_BYTES // (1024 * 1024)),
     )
+#recebendo rota do bert_notas para baixar modelo
 
+@app.route("/config/baixar-bert", methods=["POST"])
+def baixar_bert():
+    try:
+        bert_notas.baixar_modelo()
+        flash("Modelo BERT baixado com sucesso! Agora você já pode ativá-lo.", "success")
+    except Exception as exc:
+        flash(f"Erro ao baixar modelo do Hugging Face: {exc}", "error")
+    return redirect(url_for("config"))
 
 @app.route("/config", methods=["GET", "POST"])
 def config():

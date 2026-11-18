@@ -194,3 +194,16 @@ def estimar(texto: str) -> tuple[dict[str, int], bool]:
         bruto = bruto[_ordem] * 200
     notas = np.clip(np.round(bruto / 40) * 40, 0, 200).astype(int)
     return dict(zip(COMPETENCIAS, notas.tolist())), cortada
+
+#baixar modelo do bert
+
+def baixar_modelo() -> None:
+    from pathlib import Path
+    from huggingface_hub import snapshot_download
+
+    pasta_destino = Path(__file__).resolve().parent.parent / "modelos" / "bertimbau_enem"
+    pasta_destino.mkdir(parents=True, exist_ok=True)
+    snapshot_download(
+        repo_id="https://huggingface.co/berghilde/bertimbau-enem-notas/tree/main",
+        local_dir=str(pasta_destino),
+    )
