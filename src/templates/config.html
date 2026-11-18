@@ -111,6 +111,20 @@
       />
       <span>Usar o BERTimbau para estimar as notas</span>
     </label>
+    {% if bert_available %}
+    <span class="field__hint">✓ Modelo BERT já está baixado e pronto para uso.</span>
+    {% else %}
+    <div class="form__actions" style="margin-top: 0.75rem;">
+      <button
+        class="button button--outlined button--small"
+        type="submit"
+        formaction="{{ url_for('baixar_bert') }}"
+        formnovalidate
+      >
+        Baixar modelo BERT automaticamente (~415 MB)
+      </button>
+    </div>
+    {% endif %}
     <span class="field__hint">
       {% if bert_available %}
       Ligado: o BERTimbau estima C1–C5 e a IA explica cada nota. Desligado: a IA

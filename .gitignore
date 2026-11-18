@@ -1,8 +1,17 @@
 .env
 .venv/
 __pycache__/
+/modelos
+data/
+ml/corpus/
+ml/dados/
+ml/resultados/*.jsonl
 *.py[cod]
 data/
 modelos/
 .pytest_cache/
 .ruff_cache/
+
+
+
+
