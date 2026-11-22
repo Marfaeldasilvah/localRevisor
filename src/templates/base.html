@@ -7,8 +7,40 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
   </head>
   <body>
+    <div id="menu-backdrop" class="menu-backdrop" hidden></div>
+    <nav id="app-menu" class="app-menu" aria-label="Menu principal" aria-hidden="true">
+      <div class="app-menu__header">
+        <strong>localᴚevisor</strong>
+        <button
+          id="menu-close"
+          class="icon-button"
+          type="button"
+          aria-label="Fechar menu"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M18.3 5.71 12 12l6.3 6.29-1.41 1.42L10.59 13.41l-6.3 6.3-1.41-1.42L9.17 12l-6.29-6.29 1.41-1.42 6.3 6.3 6.29-6.29z" />
+          </svg>
+        </button>
+      </div>
+      <a href="{{ url_for('index') }}">Início</a>
+      <a href="{{ url_for('config') }}">Configurações</a>
+      <a href="{{ url_for('feedback') }}">Feedback</a>
+    </nav>
+
     <header class="app-bar">
       <div class="app-bar__leading">
+        <button
+          id="menu-toggle"
+          class="icon-button menu-toggle"
+          type="button"
+          aria-label="Abrir menu"
+          aria-controls="app-menu"
+          aria-expanded="false"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" />
+          </svg>
+        </button>
         {% if back_url %}
         <a class="icon-button" href="{{ back_url }}" aria-label="Voltar">
           <svg viewBox="0 0 24 24" aria-hidden="true">

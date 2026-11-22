@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Feedback · localᴚevisor{% endblock %}
+{% block heading %}Feedback{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h2>Envie seu feedback</h2>
+  <p>
+    Compartilhe sugestões, elogios, críticas ou relate qualquer problema encontrado.
+  </p>
+
+  {% if error %}
+  <p class="feedback-error" role="alert">{{ error }}</p>
+  {% endif %}
+
+  <form class="form feedback-form" method="post" action="{{ url_for('feedback') }}">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+
+    <div class="honeypot" aria-hidden="true">
+      <label>Website</label>
+      <input type="text" name="website" tabindex="-1" autocomplete="off" />
+    </div>
+
+    <div class="field">
+      <label for="feedback-name">Nome (opcional)</label>
+      <input
+        id="feedback-name"
+        name="name"
+        type="text"
+        maxlength="100"
+        value="{{ name }}"
+        autocomplete="name"
+      />
+    </div>
+
+    <div class="field">
+      <label for="feedback-email">E-mail (opcional)</label>
+      <input
+        id="feedback-email"
+        name="email"
+        type="email"
+        maxlength="254"
+        value="{{ email }}"
+        autocomplete="email"
+      />
+    </div>
+
+    <div class="field">
+      <label for="feedback-message">Mensagem (obrigatória)</label>
+      <textarea
+        id="feedback-message"
+        class="textarea"
+        name="message"
+        maxlength="5000"
+        required
+      >{{ message }}</textarea>
+    </div>
+
+    <div class="form__actions">
+      <button class="button" type="submit">Enviar feedback</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

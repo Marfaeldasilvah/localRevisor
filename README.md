@@ -138,6 +138,13 @@ paginação, CSRF, upload, BERT fail-closed, worker e persistência. O CI roda l
 | `LOCALREVISOR_MAX_UPLOAD_BYTES` | `20971520` | Limite de upload. |
 | `LOCALREVISOR_MAX_WORKERS` | `2` | Correções simultâneas. |
 | `SECRET_KEY` | gerado em `data/.secret` | Segredo das sessões/CSRF. |
+| `SMTP_HOST` | vazio | Servidor SMTP usado pelo formulário de feedback. |
+| `SMTP_PORT` | `587` | Porta SMTP; use `465` para SSL direto. |
+| `SMTP_USERNAME` | vazio | Usuário SMTP, quando a conta exigir autenticação. |
+| `SMTP_PASSWORD` | vazio | Senha SMTP. Nunca coloque diretamente no código. |
+| `SMTP_FROM` | vazio | Remetente autorizado pelo provedor; pode usar `SMTP_USERNAME`. |
+| `SMTP_USE_SSL` | `0` | Use `1` para SSL direto (porta normalmente `465`). |
+| `FEEDBACK_EMAIL` | `marcusvssasis@gmail.com` | Endereço que receberá os feedbacks enviados pelo site. |
 
 ## Estrutura
 
