@@ -15,6 +15,59 @@ class WebTests(unittest.TestCase):
         main.app.config["TESTING"] = True
         self.client = main.app.test_client()
         os.environ.pop("OPENAI_API_KEY", None)
+        with main.FEEDBACK_RATE_LOCK:
+            main.FEEDBACK_RATE_LIMIT.clear()
+
+    def test_feedback_page_and_send(self):
+        response = self.client.get("/feedback")
+        self.assertEqual(response.status_code, 200)
+        body = response.get_data(as_text=True)
+        self.assertIn("Envie seu feedback", body)
+
+        token = support.csrf(self.client, "/feedback")
+        with mock.patch.object(main, "_send_feedback_email") as send:
+            response = self.client.post(
+                "/feedback",
+                data={
+                    "_csrf_token": token,
+                    "name": "Maria",
+                    "email": "maria@example.com",
+                    "message": "Gostei do novo fluxo.",
+                },
+            )
+        self.assertEqual(response.status_code, 302)
+        send.assert_called_once_with("Maria", "maria@example.com", "Gostei do novo fluxo.")
+
+    def test_feedback_message_is_required_and_csrf_is_required(self):
+        response = self.client.post(
+            "/feedback",
+            data={"name": "", "email": "", "message": ""},
+        )
+        self.assertEqual(response.status_code, 400)
+
+        token = support.csrf(self.client, "/feedback")
+        response = self.client.post(
+            "/feedback",
+            data={"_csrf_token": token, "name": "", "email": "", "message": "   "},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Escreva uma mensagem", response.get_data(as_text=True))
+
+    def test_feedback_smtp_error_is_friendly(self):
+        token = support.csrf(self.client, "/feedback")
+        with mock.patch.object(main, "_send_feedback_email", side_effect=RuntimeError("smtp")):
+            response = self.client.post(
+                "/feedback",
+                data={
+                    "_csrf_token": token,
+                    "name": "",
+                    "email": "",
+                    "message": "Relato de um problema.",
+                },
+            )
+        body = response.get_data(as_text=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Não foi possível enviar seu feedback", body)
 
     def test_upload_blocked_without_config(self):
         response = self.client.get("/upload")
@@ -25,6 +78,9 @@ class WebTests(unittest.TestCase):
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
         self.assertIn("ainda não está configurada", response.get_data(as_text=True))
+        body = response.get_data(as_text=True)
+        self.assertIn('id="menu-toggle"', body)
+        self.assertIn('href="/feedback"', body)
 
     def test_config_save(self):
         token = support.csrf(self.client)

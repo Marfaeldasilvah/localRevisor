@@ -787,3 +787,86 @@ h2 {
   white-space: nowrap;
   border: 0;
 }
+
+.menu-toggle {
+  margin-left: -8px;
+}
+
+.menu-backdrop {
+  position: fixed;
+  z-index: 90;
+  inset: 0;
+  background: rgb(29 27 32 / 0.32);
+}
+
+.app-menu {
+  position: fixed;
+  z-index: 100;
+  top: 0;
+  left: 0;
+  width: min(320px, 88vw);
+  height: 100dvh;
+  padding: 8px;
+  transform: translateX(-105%);
+  border-right: 1px solid var(--outline-variant);
+  background: var(--surface);
+  box-shadow: 0 4px 16px rgb(29 27 32 / 0.24);
+  transition: transform 180ms ease-out;
+}
+
+.app-menu--open {
+  transform: translateX(0);
+}
+
+.app-menu__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 56px;
+  padding: 0 8px 0 16px;
+  color: var(--on-surface);
+  font-size: 18px;
+}
+
+.app-menu > a {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 16px;
+  border-radius: 12px;
+  color: var(--on-surface);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.app-menu > a:hover,
+.app-menu > a:focus-visible {
+  background: var(--surface-container);
+  outline: none;
+}
+
+.feedback-form {
+  margin-top: 16px;
+}
+
+.feedback-error {
+  margin: 12px 0;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--error) 12%, var(--surface));
+  color: var(--error);
+  font-size: 14px;
+}
+
+.honeypot {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+body.menu-open {
+  overflow: hidden;
+}

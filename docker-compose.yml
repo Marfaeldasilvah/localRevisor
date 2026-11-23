@@ -14,6 +14,13 @@ services:
       OPENAI_IMAGE_MODEL: ${OPENAI_IMAGE_MODEL:-}
       USE_BERT: ${USE_BERT:-0}
       SECRET_KEY: ${SECRET_KEY:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_USE_SSL: ${SMTP_USE_SSL:-0}
+      FEEDBACK_EMAIL: ${FEEDBACK_EMAIL:-marcusvssasis@gmail.com}
     volumes:
       - ./data:/app/data
       - ./modelos:/app/modelos:ro
