@@ -197,6 +197,14 @@ Também é possível rodar com `nix run` ou passar opções do Flask diretamente
 nix develop -c python -m unittest discover -s tests -t . -v
 ```
 
+Para visualizar `DOCS.md` com renderização dos diagramas Mermaid (via `mdbook` + `mdbook-mermaid`):
+
+```bash
+nix develop .#DOCS -c docs-serve
+# ou direto:
+nix run .#DOCS
+```
+
 ## Limitações
 
 - A nota é uma estimativa; modelos diferentes podem discordar.
