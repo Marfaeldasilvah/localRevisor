@@ -216,6 +216,21 @@
     </span>
   </div>
 
+  <div class="field">
+    <label for="bert_max_tokens">Limite de tokens do BERT (redações longas)</label>
+    <select id="bert_max_tokens" name="bert_max_tokens">
+      {% for limit in bert_token_options %}
+      <option value="{{ limit }}" {% if limit == bert_max_tokens %}selected{% endif %}>
+        {{ limit }} tokens{% if limit == 2048 %} (padrão){% endif %}
+      </option>
+      {% endfor %}
+    </select>
+    <span class="field__hint">
+      Redações acima de 512 tokens são lidas por completo em janelas deslizantes
+      sobrepostas até esse limite (incluindo a conclusão/C5).
+    </span>
+  </div>
+
   <div class="form__actions">
     <button class="button" type="submit" name="action" value="save">Salvar</button>
   </div>

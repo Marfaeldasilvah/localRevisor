@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from contextlib import closing
 
+from .. import paths
 from .connection import connect, query
 
 DEFAULT_SETTINGS = {
@@ -11,6 +12,7 @@ DEFAULT_SETTINGS = {
     "image_model": "",
     "models": "[]",
     "use_bert": "0",
+    "bert_max_tokens": str(paths.BERT_MAX_TOKENS),
 }
 
 

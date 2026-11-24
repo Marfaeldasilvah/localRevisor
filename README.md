@@ -82,8 +82,9 @@ Para ligar, marque **“Usar o BERTimbau para estimar as notas”** em Configura
 Se o modo estiver ligado e o checkpoint/dependências sumirem, a correção falha com
 uma mensagem clara em vez de cair silenciosamente no modo só-IA.
 
-**Limites conhecidos:** o modelo lê no máximo 512 tokens; redações mais longas são
-cortadas no final e o app mostra um aviso. Temas muito diferentes do corpus de
+**Redações longas:** a janela nativa do BERTimbau é de 512 tokens; textos maiores são
+lidos por completo em janelas deslizantes sobrepostas até `BERT_MAX_TOKENS` (padrão
+`2048` tokens, ajustável em Configurações). Temas muito diferentes do corpus de
 treino podem ter desempenho pior.
 
 ### Verificação do checkpoint
@@ -134,6 +135,7 @@ paginação, CSRF, upload, BERT fail-closed, worker e persistência. O CI roda l
 | `OPENAI_IMAGE_MODEL` | vazio | Modelo de visão inicial. |
 | `USE_BERT` | `0` | Valor inicial do modo BERT; depois a tela manda. |
 | `BERT_DIR` | `modelos/bertimbau_enem` | Pasta do checkpoint ajustado. |
+| `BERT_MAX_TOKENS` | `2048` | Limite total de tokens lidos pelo BERT via janelas deslizantes. |
 | `LOCALREVISOR_DATA_DIR` | `data/` | Onde ficam banco/uploads/segredo. |
 | `LOCALREVISOR_MAX_UPLOAD_BYTES` | `20971520` | Limite de upload. |
 | `LOCALREVISOR_MAX_WORKERS` | `2` | Correções simultâneas. |

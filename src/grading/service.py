@@ -8,7 +8,7 @@ from pathlib import Path
 
 from openai import OpenAI
 
-from .. import bert_notas, files
+from .. import bert_notas, files, paths
 from .models import GradingError, ModelOutputError, ReviewResult
 from .parser import join_errors, parse_hybrid, parse_review, verify_quotes
 from .prompts import (
@@ -42,6 +42,15 @@ def _parse_response(
     return note, parsed_scores, explanation, errors
 
 
+def _bert_max_tokens(settings: dict[str, str]) -> int:
+    raw = (settings.get("bert_max_tokens") or "").strip()
+    try:
+        value = int(raw)
+    except ValueError:
+        return paths.BERT_MAX_TOKENS
+    return max(bert_notas.MAX_TOKENS, min(16384, value))
+
+
 def review(
     theme: str,
     text: str,
@@ -64,7 +73,9 @@ def review(
             raise GradingError(
                 "O modo BERT está ativado, mas não pode ser usado: " + motivo
             )
-        scores, truncated = bert_notas.estimar(text)
+        scores, truncated = bert_notas.estimar(
+            text, max_total_tokens=_bert_max_tokens(settings)
+        )
         scores_text = "\n".join(f"{name}: {value}" for name, value in scores.items())
         messages = [
             {"role": "system", "content": HYBRID_PROMPT},

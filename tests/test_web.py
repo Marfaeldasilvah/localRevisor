@@ -176,6 +176,24 @@ class WebTests(unittest.TestCase):
         ):
             self.assertIn(f'value="{url}"', body)
 
+    def test_config_saves_bert_max_tokens(self):
+        token = support.csrf(self.client)
+        response = self.client.post(
+            "/config",
+            data={
+                "_csrf_token": token,
+                "action": "save",
+                "base_url": "http://localhost:11434/v1",
+                "correction_model": "fake",
+                "image_model": "",
+                "bert_max_tokens": "4096",
+            },
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(db.get_settings()["bert_max_tokens"], "4096")
+        self.assertIn('id="bert_max_tokens"', response.get_data(as_text=True))
+
     def test_config_key_save_and_remove(self):
         token = support.csrf(self.client)
         response = self.client.post(

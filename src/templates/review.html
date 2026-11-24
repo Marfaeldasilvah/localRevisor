@@ -62,7 +62,8 @@
 
 {% if correction["truncated"] %}
 <p class="card card--warning" role="status">
-  A redação é longa: o modelo de notas leu apenas o início do texto.
+  A redação excedeu o limite de tokens configurado para o BERT. Aumente o limite em
+  <a href="{{ url_for('config') }}">Configurações</a> se quiser ler textos ainda maiores.
 </p>
 {% endif %}
 

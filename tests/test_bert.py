@@ -105,6 +105,36 @@ class BertValidationTests(unittest.TestCase):
             local_dir=str(destino),
         )
 
+    def test_construir_janelas_short_text_single_window(self):
+        tokens = list(range(300))
+        janelas, cortada = bert_notas.construir_janelas(
+            tokens, window_size=512, max_total_tokens=2048
+        )
+        self.assertFalse(cortada)
+        self.assertEqual(len(janelas), 1)
+        self.assertEqual(janelas[0], tokens)
+
+    def test_construir_janelas_long_essay_covers_end_without_truncation(self):
+        tokens = list(range(700))
+        janelas, cortada = bert_notas.construir_janelas(
+            tokens, window_size=512, max_total_tokens=2048
+        )
+        self.assertFalse(cortada)
+        self.assertEqual(len(janelas), 2)
+        self.assertEqual(len(janelas[0]), 510)
+        self.assertEqual(len(janelas[-1]), 510)
+        self.assertEqual(janelas[0][0], 0)
+        self.assertEqual(janelas[-1][-1], 699)
+
+    def test_construir_janelas_marks_truncated_only_above_max_total_tokens(self):
+        tokens = list(range(2500))
+        janelas, cortada = bert_notas.construir_janelas(
+            tokens, window_size=512, max_total_tokens=2048
+        )
+        self.assertTrue(cortada)
+        self.assertGreaterEqual(len(janelas), 4)
+        self.assertEqual(janelas[-1][-1], 2045)
+
 
 if __name__ == "__main__":
     unittest.main()

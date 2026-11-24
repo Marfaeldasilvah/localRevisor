@@ -3,14 +3,53 @@ from __future__ import annotations
 
 import threading
 
+from .. import paths
 from .validation import COMPETENCIAS, pasta, rotulos_padrao
 
 MAX_TOKENS = 512
+DEFAULT_MAX_TOTAL_TOKENS = 2048
+WINDOW_OVERLAP = 128
 
 _trava = threading.Lock()  # uma estimativa por vez, mesmo com correções paralelas
 _modelo = None
 _tokenizador = None
 _ordem = list(range(5))
+
+
+def construir_janelas(
+    token_ids: list[int],
+    *,
+    window_size: int = MAX_TOKENS,
+    max_total_tokens: int = DEFAULT_MAX_TOTAL_TOKENS,
+    overlap: int = WINDOW_OVERLAP,
+) -> tuple[list[list[int]], bool]:
+    """Divide token_ids em janelas sobrepostas que cabem na janela do BERT.
+
+    Devolve ``(janelas, cortada)``. Quando o texto passa de ``window_size`` mas
+    cabe em ``max_total_tokens``, todas as partes — inclusive a conclusão — são
+    cobertas por janelas sobrepostas e ``cortada`` é ``False``.
+    """
+    content_size = max(1, window_size - 2)
+    max_content = max(content_size, max_total_tokens - 2)
+    cortada = len(token_ids) > max_content
+    usados = token_ids[:max_content]
+    if len(usados) <= content_size:
+        return [usados], cortada
+
+    effective_overlap = min(overlap, content_size // 4)
+    stride = max(1, content_size - effective_overlap)
+    janelas: list[list[int]] = []
+    inicio = 0
+    total = len(usados)
+    while inicio < total:
+        fim = min(inicio + content_size, total)
+        if fim == total:
+            # Ancora a última janela no final para manter contexto cheio da conclusão.
+            janelas.append(usados[total - content_size : total])
+            break
+        janelas.append(usados[inicio:fim])
+        inicio += stride
+    return janelas, cortada
 
 
 def _mapear_rotulos(modelo) -> list[int]:
@@ -68,21 +107,78 @@ def _carregar():
     return _tokenizador, _modelo
 
 
-def estimar(texto: str) -> tuple[dict[str, int], bool]:
-    """Devolve ({'C1': 120, ...}, True se o texto passou de 512 pedaços)."""
+def _envolver_tokens_especiais(tokenizador, janela: list[int]) -> list[int]:
+    prefixo = (
+        tokenizador.cls_token_id
+        if getattr(tokenizador, "cls_token_id", None) is not None
+        else getattr(tokenizador, "bos_token_id", None)
+    )
+    sufixo = (
+        tokenizador.sep_token_id
+        if getattr(tokenizador, "sep_token_id", None) is not None
+        else getattr(tokenizador, "eos_token_id", None)
+    )
+    resultado = list(janela)
+    if prefixo is not None:
+        resultado.insert(0, int(prefixo))
+    if sufixo is not None:
+        resultado.append(int(sufixo))
+    return resultado
+
+
+def estimar(
+    texto: str, *, max_total_tokens: int | None = None
+) -> tuple[dict[str, int], bool]:
+    """Devolve ({'C1': 120, ...}, True se passou do limite total de tokens).
+
+    Redações maiores que a janela do modelo (512 tokens) são avaliadas em
+    janelas deslizantes sobrepostas até ``max_total_tokens``.
+    """
     if not texto or not texto.strip():
         raise ValueError("A redação está vazia.")
     import numpy as np
     import torch
 
+    limite_total = max(
+        MAX_TOKENS,
+        int(max_total_tokens) if max_total_tokens else paths.BERT_MAX_TOKENS,
+    )
+
     with _trava:
         tokenizador, modelo = _carregar()
-        cortada = len(tokenizador.encode(texto)) > MAX_TOKENS
-        entrada = tokenizador(
-            texto, truncation=True, max_length=MAX_TOKENS, return_tensors="pt"
+        window_size = int(
+            getattr(modelo.config, "max_position_embeddings", MAX_TOKENS) or MAX_TOKENS
         )
-        with torch.no_grad():
-            bruto = modelo(**entrada).logits[0].detach().cpu().numpy()
+        token_ids = tokenizador.encode(texto, add_special_tokens=False)
+        janelas, cortada = construir_janelas(
+            token_ids,
+            window_size=window_size,
+            max_total_tokens=limite_total,
+        )
+
+        if len(janelas) == 1:
+            entrada = tokenizador(
+                texto, truncation=True, max_length=window_size, return_tensors="pt"
+            )
+            with torch.no_grad():
+                bruto = modelo(**entrada).logits[0].detach().cpu().numpy()
+        else:
+            predicoes = []
+            pesos = []
+            with torch.no_grad():
+                for janela in janelas:
+                    input_ids = _envolver_tokens_especiais(tokenizador, janela)
+                    entrada = {
+                        "input_ids": torch.tensor([input_ids], dtype=torch.long),
+                        "attention_mask": torch.ones(
+                            (1, len(input_ids)), dtype=torch.long
+                        ),
+                    }
+                    logits = modelo(**entrada).logits[0].detach().cpu().numpy()
+                    predicoes.append(logits)
+                    pesos.append(len(janela))
+            bruto = np.average(np.stack(predicoes, axis=0), axis=0, weights=pesos)
+
         if bruto.shape[0] != 5:
             raise RuntimeError(
                 f"O modelo devolveu {bruto.shape[0]} notas; esperava 5 (C1 a C5)."

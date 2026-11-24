@@ -6,9 +6,18 @@ import os
 
 from flask import Flask, flash, redirect, render_template, request, url_for
 
-from .. import bert_notas, db, grading, secrets_store
+from .. import bert_notas, db, grading, paths, secrets_store
 
 CUSTOM_MODEL_VALUE = "__custom__"
+BERT_MAX_TOKEN_OPTIONS = (512, 1024, 2048, 4096, 8192)
+
+
+def _normalize_bert_max_tokens(raw: str | None) -> str:
+    try:
+        value = int((raw or "").strip())
+    except ValueError:
+        return str(paths.BERT_MAX_TOKENS)
+    return str(max(bert_notas.MAX_TOKENS, min(16384, value)))
 
 
 def settings_configured(settings: dict[str, str] | None = None) -> bool:
@@ -101,6 +110,10 @@ def register(app: Flask) -> None:
                 if request.form.get("use_bert") and bert_notas.instalado()
                 else "0"
             )
+            if "bert_max_tokens" in request.form:
+                settings["bert_max_tokens"] = _normalize_bert_max_tokens(
+                    request.form.get("bert_max_tokens")
+                )
             db.save_settings(settings)
 
             if action == "connect":
@@ -135,6 +148,10 @@ def register(app: Flask) -> None:
         correction_options, image_options = model_options(settings)
         setup = request.args.get("setup") == "1"
         current_base_url = settings.get("base_url", "")
+        bert_max_tokens = int(
+            _normalize_bert_max_tokens(settings.get("bert_max_tokens"))
+        )
+        bert_token_options = sorted({*BERT_MAX_TOKEN_OPTIONS, bert_max_tokens})
         return render_template(
             "config.html",
             base_url=current_base_url,
@@ -146,6 +163,8 @@ def register(app: Flask) -> None:
             correction_model=settings.get("correction_model", ""),
             image_model=settings.get("image_model", ""),
             use_bert=settings.get("use_bert") == "1" and bert_notas.instalado(),
+            bert_max_tokens=bert_max_tokens,
+            bert_token_options=bert_token_options,
             bert_available=bert_notas.instalado(),
             bert_reason=bert_notas.motivo_indisponivel(),
             setup=setup,

@@ -43,6 +43,8 @@ SECRET_PATH = DATA_DIR / ".secret"
 
 # 20 MB é suficiente para uma redação escaneada; evita upload ilimitado.
 MAX_UPLOAD_BYTES = _int_env("LOCALREVISOR_MAX_UPLOAD_BYTES", 20 * 1024 * 1024)
+# Limite total de tokens lidos pelo BERT via janelas deslizantes de 512 tokens.
+BERT_MAX_TOKENS = max(512, min(16384, _int_env("BERT_MAX_TOKENS", 2048)))
 
 
 def configure(
