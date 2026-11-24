@@ -253,6 +253,7 @@ h2 {
 }
 
 .field select {
+  background: var(--surface);
   cursor: pointer;
 }
 

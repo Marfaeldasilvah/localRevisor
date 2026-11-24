@@ -50,13 +50,52 @@
   </div>
 
   <div class="form__actions">
-    <button class="button button--outlined" type="submit" name="action" value="connect">
+    <button
+      class="button button--outlined"
+      type="submit"
+      name="action"
+      value="connect"
+      formnovalidate
+    >
       Conectar
     </button>
   </div>
 
   <h2>Modelo de correção</h2>
-  <div class="field">
+  <div class="field" data-model-field>
+    {% if correction_options %}
+    <label for="correction_model_select">Modelo</label>
+    <select
+      id="correction_model_select"
+      name="correction_model"
+      data-model-select
+      required
+    >
+      <option value="" {% if not correction_model %}selected{% endif %} disabled>
+        Selecione um modelo
+      </option>
+      {% for option in correction_options %}
+      <option value="{{ option }}" {% if option == correction_model %}selected{% endif %}>
+        {{ option }}
+      </option>
+      {% endfor %}
+      <option value="__custom__">Outro (digitar manualmente)...</option>
+    </select>
+    <input
+      id="correction_model"
+      name="correction_model_custom"
+      type="text"
+      value=""
+      placeholder="Digite o nome do modelo"
+      aria-label="Nome do modelo de correção"
+      data-model-custom
+      hidden
+    />
+    <span class="field__hint">
+      {{ correction_options|length }} modelo(s) disponível(is). Escolha na lista ou
+      selecione “Outro” para digitar manualmente.
+    </span>
+    {% else %}
     <label for="correction_model">Modelo</label>
     <input
       id="correction_model"
@@ -64,21 +103,44 @@
       type="text"
       value="{{ correction_model }}"
       placeholder="Conecte ou digite o nome do modelo"
-      list="correction-models"
       required
     />
-    <datalist id="correction-models">
-      {% for option in correction_options %}
-      <option value="{{ option }}"></option>
-      {% endfor %}
-    </datalist>
     <span class="field__hint">
-      A lista vem da conexão; se o provedor não listar modelos, digite o nome.
+      Clique em Conectar para carregar a lista ou digite o nome do modelo.
     </span>
+    {% endif %}
   </div>
 
   <h2>Modelo de imagem</h2>
-  <div class="field">
+  <div class="field" data-model-field>
+    {% if image_options %}
+    <label for="image_model_select">Modelo</label>
+    <select
+      id="image_model_select"
+      name="image_model"
+      data-model-select
+    >
+      <option value="" {% if not image_model %}selected{% endif %}>
+        Nenhum (opcional para texto/PDF digital)
+      </option>
+      {% for option in image_options %}
+      <option value="{{ option }}" {% if option == image_model %}selected{% endif %}>
+        {{ option }}
+      </option>
+      {% endfor %}
+      <option value="__custom__">Outro (digitar manualmente)...</option>
+    </select>
+    <input
+      id="image_model"
+      name="image_model_custom"
+      type="text"
+      value=""
+      placeholder="Digite o nome do modelo de imagem"
+      aria-label="Nome do modelo de imagem"
+      data-model-custom
+      hidden
+    />
+    {% else %}
     <label for="image_model">Modelo</label>
     <input
       id="image_model"
@@ -86,13 +148,8 @@
       type="text"
       value="{{ image_model }}"
       placeholder="Opcional para texto/PDF digital"
-      list="image-models"
     />
-    <datalist id="image-models">
-      {% for option in image_options %}
-      <option value="{{ option }}"></option>
-      {% endfor %}
-    </datalist>
+    {% endif %}
     <span class="field__hint">
       Opcional para texto/PDF digital; necessário para fotos e PDFs escaneados.
       Precisa aceitar imagens.

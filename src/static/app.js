@@ -28,3 +28,23 @@ menuBackdrop?.addEventListener("click", () => setMenuOpen(false));
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") setMenuOpen(false);
 });
+
+document.querySelectorAll("[data-model-field]").forEach((field) => {
+  const select = field.querySelector("[data-model-select]");
+  const customInput = field.querySelector("[data-model-custom]");
+  if (!select || !customInput) return;
+
+  const sync = (focusCustom) => {
+    const isCustom = select.value === "__custom__";
+    customInput.hidden = !isCustom;
+    customInput.required = isCustom && select.required;
+    if (isCustom && focusCustom) {
+      customInput.focus();
+    } else if (!isCustom) {
+      customInput.value = "";
+    }
+  };
+
+  sync(false);
+  select.addEventListener("change", () => sync(true));
+});

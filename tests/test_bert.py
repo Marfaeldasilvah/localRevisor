@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import tempfile
+import types
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from src import bert_notas
 
@@ -87,6 +90,20 @@ class BertValidationTests(unittest.TestCase):
         (self.dir / "config.json").write_text("{", encoding="utf-8")
         self.assertFalse(bert_notas._ajustado())
         self.assertIn("config.json", bert_notas.motivo_indisponivel())
+
+    def test_baixar_modelo_uses_valid_repo_id(self):
+        destino = self.dir / "novo_modelo"
+        os.environ["BERT_DIR"] = str(destino)
+        download = mock.Mock()
+        fake_hf = types.ModuleType("huggingface_hub")
+        fake_hf.snapshot_download = download
+        with mock.patch.dict(sys.modules, {"huggingface_hub": fake_hf}):
+            bert_notas.baixar_modelo()
+        self.assertTrue(destino.is_dir())
+        download.assert_called_once_with(
+            repo_id="berghilde/bertimbau-enem-notas",
+            local_dir=str(destino),
+        )
 
 
 if __name__ == "__main__":

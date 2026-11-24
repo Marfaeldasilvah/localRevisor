@@ -50,8 +50,8 @@ pip install -r requirements-bert.txt
 python -m flask --app src.main run --debug
 ```
 
-Abra `http://127.0.0.1:5000`. Quem usa Nix pode rodar
-`nix develop -c .venv/bin/flask --app src.main run --debug` (veja a seção Nix).
+Abra `http://127.0.0.1:5000`. Quem usa Nix pode rodar diretamente
+`nix develop -c localrevisor` (ou `nix develop -c flask run --debug`; veja a seção Nix).
 
 ## Primeira execução
 
@@ -149,12 +149,14 @@ paginação, CSRF, upload, BERT fail-closed, worker e persistência. O CI roda l
 ## Estrutura
 
 ```
-src/main.py            rotas Flask, CSRF, upload e configuração
-src/db.py              SQLite, migrações e paginação
-src/grading.py         prompts, contrato JSON, OpenAI e BERT
+src/main.py            ponto de entrada Flask e inicialização
+src/web/               app factory, CSRF/segurança, feedback e rotas (correções/config)
+src/db/                conexão SQLite, schema/migrações, configurações e repositório de correções
+src/grading/           modelos/exceções, prompts, cliente HTTP/OpenAI, parser JSON e serviço de correção
+src/bert_notas/        validação de checkpoint, inferência e download do BERTimbau
 src/worker.py          execução em segundo plano
 src/files.py           validação e leitura de arquivos
-src/bert_notas.py      estimativa opcional com BERTimbau
+src/paths.py           caminhos e limites configuráveis
 src/secrets_store.py   chave/.env e segredo de sessão
 tests/                 suíte de testes
 data/                  banco, uploads e segredo (fora do Git)
@@ -177,12 +179,20 @@ passar pelo `.env` interno, defina `OPENAI_API_KEY` no ambiente/compose. O
 
 ## Nix (experimental)
 
-O `flake.nix` é um `devShell` para `x86_64-linux` e instala `torch` mesmo sem o
-modo BERT. Ele é um atalho de desenvolvimento, não um pacote reproduzível:
+O `flake.nix` fornece um `devShell` (e um app padrão) para `x86_64-linux` com as
+dependências do app e do modo BERT (`torch`, `transformers`, etc.), além de `ffmpeg`
+e `ruff`. Ele é um atalho de desenvolvimento, não um pacote reproduzível:
 
 ```bash
-nix develop
-python -m flask --app src.main run --debug
+nix develop -c localrevisor
+```
+
+Também é possível rodar com `nix run` ou passar opções do Flask diretamente
+(por exemplo, `nix develop -c localrevisor --port 8080` ou
+`nix develop -c flask run --debug`). Para rodar os testes dentro do ambiente Nix:
+
+```bash
+nix develop -c python -m unittest discover -s tests -t . -v
 ```
 
 ## Limitações

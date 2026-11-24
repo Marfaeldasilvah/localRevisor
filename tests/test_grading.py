@@ -168,5 +168,55 @@ class ReviewTests(unittest.TestCase):
                 grading.review("Tema", "Redação.", settings, client=FakeClient("{}"))
 
 
+class FetchModelsTests(unittest.TestCase):
+    def _fake_response(self, status_code: int, payload=None, json_error: bool = False):
+        resp = mock.Mock()
+        resp.status_code = status_code
+        if json_error:
+            resp.json.side_effect = ValueError("not json")
+        else:
+            resp.json.return_value = payload
+        return resp
+
+    def test_fetch_models_uses_http_get_openai_schema(self):
+        fake = self._fake_response(
+            200,
+            {"data": [{"id": "model-b"}, {"id": "model-a"}, {"id": "model-a"}]},
+        )
+        with mock.patch("src.grading.provider.httpx.get", return_value=fake) as get:
+            models = grading.fetch_models("https://opencode.ai/zen/go/v1", "sk-test")
+        self.assertEqual(models, ["model-a", "model-b"])
+        get.assert_called_once()
+        called_url = get.call_args.args[0]
+        headers = get.call_args.kwargs["headers"]
+        self.assertEqual(called_url, "https://opencode.ai/zen/go/v1/models")
+        self.assertEqual(headers["Authorization"], "Bearer sk-test")
+        self.assertIn("x-opencode-session", headers)
+
+    def test_fetch_models_supports_models_key(self):
+        fake = self._fake_response(
+            200,
+            {"models": [{"name": "llama3.2"}, {"id": "qwen2.5"}]},
+        )
+        with mock.patch("src.grading.provider.httpx.get", return_value=fake):
+            models = grading.fetch_models("http://localhost:11434/v1")
+        self.assertEqual(models, ["llama3.2", "qwen2.5"])
+
+    def test_fetch_models_404_mentions_url(self):
+        fake = self._fake_response(404, {"error": "not found"})
+        with mock.patch("src.grading.provider.httpx.get", return_value=fake):
+            with self.assertRaises(grading.GradingError) as ctx:
+                grading.fetch_models("https://opencode.ai/inference/go", "sk-test")
+        self.assertIn("404", str(ctx.exception))
+        self.assertIn("https://opencode.ai/inference/go/models", str(ctx.exception))
+
+    def test_fetch_models_rejects_non_json_response(self):
+        fake = self._fake_response(200, json_error=True)
+        with mock.patch("src.grading.provider.httpx.get", return_value=fake):
+            with self.assertRaises(grading.GradingError) as ctx:
+                grading.fetch_models("https://example.com/api", "sk-test")
+        self.assertIn("JSON válido", str(ctx.exception))
+
+
 if __name__ == "__main__":
     unittest.main()

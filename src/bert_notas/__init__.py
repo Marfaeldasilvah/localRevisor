@@ -1,0 +1,30 @@
+"""Estimativa opcional das notas por competência com um BERTimbau ajustado."""
+from __future__ import annotations
+
+from .download import HF_REPO_ID, baixar_modelo
+from .inference import MAX_TOKENS, estimar
+from .validation import (
+    COMPETENCIAS,
+    ajustado as _ajustado,
+    instalado,
+    ler_config as _config,
+    motivo_indisponivel,
+    pasta as _pasta,
+    rotulos_padrao as _rotulos_padrao,
+    rotulos_validos as _rotulos_validos,
+)
+
+__all__ = [
+    "COMPETENCIAS",
+    "HF_REPO_ID",
+    "MAX_TOKENS",
+    "_ajustado",
+    "_config",
+    "_pasta",
+    "_rotulos_padrao",
+    "_rotulos_validos",
+    "baixar_modelo",
+    "estimar",
+    "instalado",
+    "motivo_indisponivel",
+]

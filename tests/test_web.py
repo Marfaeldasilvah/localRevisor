@@ -99,6 +99,68 @@ class WebTests(unittest.TestCase):
         self.assertEqual(settings["correction_model"], "fake")
         self.assertEqual(settings["base_url"], "http://localhost:11434/v1")
 
+    def test_config_connect_populates_select_and_saves_selected_model(self):
+        token = support.csrf(self.client)
+        models = ["deepseek-chat", "deepseek-reasoner", "qwen2.5"]
+        with mock.patch.object(main.grading, "fetch_models", return_value=models):
+            response = self.client.post(
+                "/config",
+                data={
+                    "_csrf_token": token,
+                    "action": "connect",
+                    "base_url": "http://localhost:11434/v1",
+                    "correction_model": "",
+                    "image_model": "",
+                },
+                follow_redirects=True,
+            )
+        self.assertEqual(response.status_code, 200)
+        body = response.get_data(as_text=True)
+        self.assertIn("Conectado. 3 modelo(s) encontrado(s).", body)
+        self.assertIn('id="correction_model_select"', body)
+        self.assertIn('id="image_model_select"', body)
+        for model in models:
+            self.assertIn(f'<option value="{model}"', body)
+        # Não preenche arbitrariamente modelos quando há várias opções
+        settings_after_connect = db.get_settings()
+        self.assertEqual(settings_after_connect["correction_model"], "")
+        self.assertEqual(settings_after_connect["image_model"], "")
+
+        token = support.csrf(self.client)
+        response = self.client.post(
+            "/config",
+            data={
+                "_csrf_token": token,
+                "action": "save",
+                "base_url": "http://localhost:11434/v1",
+                "correction_model": "deepseek-reasoner",
+                "image_model": "qwen2.5",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        settings = db.get_settings()
+        self.assertEqual(settings["correction_model"], "deepseek-reasoner")
+        self.assertEqual(settings["image_model"], "qwen2.5")
+
+    def test_config_save_custom_model_option(self):
+        token = support.csrf(self.client)
+        response = self.client.post(
+            "/config",
+            data={
+                "_csrf_token": token,
+                "action": "save",
+                "base_url": "http://localhost:11434/v1",
+                "correction_model": "__custom__",
+                "correction_model_custom": "meu-modelo-local",
+                "image_model": "__custom__",
+                "image_model_custom": "meu-modelo-visao",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        settings = db.get_settings()
+        self.assertEqual(settings["correction_model"], "meu-modelo-local")
+        self.assertEqual(settings["image_model"], "meu-modelo-visao")
+
     def test_config_key_save_and_remove(self):
         token = support.csrf(self.client)
         response = self.client.post(
