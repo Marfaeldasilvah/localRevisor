@@ -13,6 +13,7 @@ from .parser import (
     parse_scores,
     verify_quotes,
 )
+from .presets import PROVIDER_PRESETS, ProviderPreset, match_preset_url
 from .prompts import (
     DEFAULT_MAX_TOKENS,
     DEFAULT_TIMEOUT,
@@ -47,6 +48,8 @@ __all__ = [
     "PROMPT_VERSION_HYBRID",
     "PROMPT_VERSION_REVIEW",
     "PROMPT_VERSION_TRANSCRIBE",
+    "PROVIDER_PRESETS",
+    "ProviderPreset",
     "REPAIR_PROMPT",
     "REVIEW_PROMPT",
     "ReviewResult",
@@ -60,6 +63,7 @@ __all__ = [
     "fetch_models",
     "files",
     "is_local_endpoint",
+    "match_preset_url",
     "normalize_competency",
     "normalize_errors",
     "normalize_note",

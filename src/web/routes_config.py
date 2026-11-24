@@ -134,9 +134,12 @@ def register(app: Flask) -> None:
 
         correction_options, image_options = model_options(settings)
         setup = request.args.get("setup") == "1"
+        current_base_url = settings.get("base_url", "")
         return render_template(
             "config.html",
-            base_url=settings.get("base_url", ""),
+            base_url=current_base_url,
+            provider_presets=grading.PROVIDER_PRESETS,
+            selected_preset=grading.match_preset_url(current_base_url),
             key_configured=secrets_store.key_configured(),
             correction_options=correction_options,
             image_options=image_options,

@@ -48,3 +48,37 @@ document.querySelectorAll("[data-model-field]").forEach((field) => {
   sync(false);
   select.addEventListener("change", () => sync(true));
 });
+
+const providerPreset = document.querySelector("[data-provider-preset]");
+const baseUrlInput = document.getElementById("base_url");
+const providerHint = document.querySelector("[data-provider-hint]");
+
+if (providerPreset && baseUrlInput) {
+  const defaultHint = providerHint ? providerHint.textContent : "";
+
+  const updateHint = () => {
+    if (!providerHint) return;
+    const selected = providerPreset.selectedOptions[0];
+    providerHint.textContent = selected?.dataset.hint || defaultHint;
+  };
+
+  providerPreset.addEventListener("change", () => {
+    if (providerPreset.value) {
+      baseUrlInput.value = providerPreset.value;
+    } else {
+      baseUrlInput.focus();
+    }
+    updateHint();
+  });
+
+  baseUrlInput.addEventListener("input", () => {
+    const normalized = baseUrlInput.value.trim().replace(/\/+$/, "");
+    const match = Array.from(providerPreset.options).find(
+      (opt) => opt.value && opt.value.replace(/\/+$/, "") === normalized
+    );
+    providerPreset.value = match ? match.value : "";
+    updateHint();
+  });
+
+  updateHint();
+}

@@ -161,6 +161,21 @@ class WebTests(unittest.TestCase):
         self.assertEqual(settings["correction_model"], "meu-modelo-local")
         self.assertEqual(settings["image_model"], "meu-modelo-visao")
 
+    def test_config_renders_popular_provider_presets(self):
+        response = self.client.get("/config")
+        self.assertEqual(response.status_code, 200)
+        body = response.get_data(as_text=True)
+        self.assertIn('id="provider_preset"', body)
+        for url in (
+            "https://api.z.ai/api/paas/v4",
+            "https://api.anthropic.com/v1",
+            "https://generativelanguage.googleapis.com/v1beta/openai",
+            "https://opencode.ai/zen/go/v1",
+            "https://opencode.ai/inference/go/v1",
+            "http://localhost:11434/v1",
+        ):
+            self.assertIn(f'value="{url}"', body)
+
     def test_config_key_save_and_remove(self):
         token = support.csrf(self.client)
         response = self.client.post(

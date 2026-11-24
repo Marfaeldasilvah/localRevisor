@@ -16,6 +16,27 @@
   <h2>API</h2>
 
   <div class="field">
+    <label for="provider_preset">Provedor</label>
+    <select id="provider_preset" data-provider-preset>
+      {% for preset in provider_presets %}
+      <option
+        value="{{ preset.base_url }}"
+        data-hint="{{ preset.hint }}"
+        {% if preset.base_url == selected_preset %}selected{% endif %}
+      >
+        {{ preset.label }} — {{ preset.base_url }}
+      </option>
+      {% endfor %}
+      <option value="" {% if not selected_preset %}selected{% endif %}>
+        Personalizado (digitar URL base)
+      </option>
+    </select>
+    <span class="field__hint" data-provider-hint>
+      Escolha um provedor popular para preencher a URL base ou selecione “Personalizado”.
+    </span>
+  </div>
+
+  <div class="field">
     <label for="base_url">URL base</label>
     <input
       id="base_url"
@@ -25,7 +46,10 @@
       placeholder="https://api.deepseek.com"
       required
     />
-    <span class="field__hint">Endpoint compatível com a API da OpenAI.</span>
+    <span class="field__hint">
+      Endpoint compatível com a API da OpenAI. Para Ollama em outra porta local,
+      edite <code>11434</code> diretamente na URL.
+    </span>
   </div>
 
   <div class="field">
