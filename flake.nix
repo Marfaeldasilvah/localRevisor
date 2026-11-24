@@ -35,6 +35,13 @@
             echo "Erro: execute a partir da raiz do repositório localRevisor (onde fica src/main.py)." >&2
             exit 1
           fi
+          for arg in "$@"; do
+            case "$arg" in
+              benchredação|benchredacao)
+                exec python -m src.bench "$@"
+                ;;
+            esac
+          done
           exec python -m flask --app src.main run --debug "$@"
         '';
       };

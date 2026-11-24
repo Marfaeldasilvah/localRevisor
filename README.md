@@ -205,6 +205,14 @@ nix develop .#DOCS -c docs-serve
 nix run .#DOCS
 ```
 
+Para rodar o benchmark de redações reais (Essay-BR) usando a configuração atual do app:
+
+```bash
+nix develop -c localrevisor --debug benchredação bert
+nix develop -c localrevisor --debug benchredação bert_ai
+nix develop -c localrevisor --debug benchredação ai -n 5
+```
+
 ## Limitações
 
 - A nota é uma estimativa; modelos diferentes podem discordar.
