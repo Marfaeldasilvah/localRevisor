@@ -1,9 +1,9 @@
 """Prompts e constantes do contrato de correção e transcrição."""
 from __future__ import annotations
 
-DEFAULT_TIMEOUT = 120.0
-DEFAULT_MAX_TOKENS = 8192
-TRANSCRIBE_MAX_TOKENS = 8192
+DEFAULT_TIMEOUT = 360.0
+DEFAULT_MAX_TOKENS = 32000
+TRANSCRIBE_MAX_TOKENS = 32000
 
 PROMPT_VERSION_REVIEW = "review-v2"
 PROMPT_VERSION_HYBRID = "hybrid-v2"

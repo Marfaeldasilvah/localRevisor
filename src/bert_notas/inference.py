@@ -7,7 +7,7 @@ from .. import paths
 from .validation import COMPETENCIAS, pasta, rotulos_padrao
 
 MAX_TOKENS = 512
-DEFAULT_MAX_TOTAL_TOKENS = 2048
+DEFAULT_MAX_TOTAL_TOKENS = 4096
 WINDOW_OVERLAP = 128
 
 _trava = threading.Lock()  # uma estimativa por vez, mesmo com correções paralelas
