@@ -25,8 +25,17 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument(
         "mode",
+        nargs="?",
+        default=None,
         choices=sorted(_MODE_ALIASES),
         help="modo do benchmark: 'bert' (só BERT), 'bert_ai' (BERT + IA configurada) ou 'ai' (só IA)",
+    )
+    parser.add_argument(
+        "--bert-only",
+        "--only-bert",
+        dest="bert_only",
+        action="store_true",
+        help="usa somente a pontuação do BERT (ignora chamada de IA mesmo em bert_ai/ai)",
     )
     parser.add_argument(
         "--debug",
@@ -58,7 +67,12 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="não baixar o Essay-BR automaticamente se o cache local não existir",
     )
     args = parser.parse_args(cleaned)
-    args.mode = _MODE_ALIASES[args.mode]
+    if args.bert_only:
+        args.mode = "bert"
+    elif args.mode is None:
+        parser.error("informe o modo (bert, bert_ai, ai) ou use --bert-only")
+    else:
+        args.mode = _MODE_ALIASES[args.mode]
     return args
 
 

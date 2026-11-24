@@ -37,6 +37,30 @@
     ></textarea>
   </div>
 
+  {% if bert_available %}
+  <div class="field">
+    {% if ai_configured %}
+    <label class="check">
+      <input
+        type="checkbox"
+        name="bert_only"
+        value="1"
+        {% if bert_only %}checked{% endif %}
+      />
+      <span>Somente pontuação do BERT (rápido e offline, sem explicação da IA)</span>
+    </label>
+    {% else %}
+    <input type="hidden" name="bert_only" value="1" />
+    <p class="card setup-banner" role="status">
+      <strong>Modo Somente BERT ativo:</strong> nenhum provedor de IA está
+      configurado; a redação receberá apenas as notas C1–C5 localmente pelo BERTimbau
+      (texto ou PDF digital).
+      <a href="{{ url_for('config') }}">Configurar IA opcional</a>
+    </p>
+    {% endif %}
+  </div>
+  {% endif %}
+
   <div class="form__actions">
     <input
       class="input"
@@ -52,8 +76,8 @@
   </div>
 
   <p class="field__hint">
-    A correção é uma estimativa para estudo. O texto é enviado apenas ao provedor
-    de IA que você configurar.
+    A correção é uma estimativa para estudo. No modo Somente BERT tudo roda
+    localmente; com IA, o texto é enviado apenas ao provedor que você configurar.
   </p>
 </form>
 {% endblock %}

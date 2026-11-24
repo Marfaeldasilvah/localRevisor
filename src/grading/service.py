@@ -58,13 +58,51 @@ def review(
     *,
     client: OpenAI | None = None,
     session_id: str | None = None,
+    bert_only: bool = False,
 ) -> ReviewResult:
-    model = (settings.get("correction_model") or "").strip()
-    if not model:
-        raise GradingError("Nenhum modelo de correção configurado.")
     if not text.strip():
         raise GradingError("A redação está vazia.")
     started = time.monotonic()
+
+    if bert_only:
+        motivo = bert_notas.motivo_indisponivel()
+        if motivo:
+            raise GradingError(
+                "O modo Somente BERT não pode ser usado: " + motivo
+            )
+        scores, truncated = bert_notas.estimar(
+            text, max_total_tokens=_bert_max_tokens(settings)
+        )
+        linhas = [
+            f"{name}: {value}/200" for name, value in scores.items()
+        ]
+        linhas.append(
+            "\nAvaliação feita somente pelo modelo BERTimbau local "
+            "(sem explicação por IA)."
+        )
+        if truncated:
+            linhas.append(
+                "Aviso: a redação é longa e o modelo de notas leu apenas o início do texto."
+            )
+        return ReviewResult(
+            note=sum(scores.values()),
+            scores=dict(scores),
+            explanation="\n".join(linhas),
+            errors="",
+            source_text=text,
+            score_mode="bert",
+            model="bertimbau-enem",
+            provider="local",
+            prompt_version="bert-only",
+            duration_ms=int((time.monotonic() - started) * 1000),
+            tokens_in=0,
+            tokens_out=0,
+            truncated=truncated,
+        )
+
+    model = (settings.get("correction_model") or "").strip()
+    if not model:
+        raise GradingError("Nenhum modelo de correção configurado.")
     tokens_in = tokens_out = 0
 
     if settings.get("use_bert") == "1":

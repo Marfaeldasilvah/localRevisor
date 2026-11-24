@@ -34,7 +34,13 @@ def active_count() -> int:
         return len(_active)
 
 
-def start(correction_id: int, theme: str, stored_name: str) -> bool:
+def start(
+    correction_id: int,
+    theme: str,
+    stored_name: str,
+    *,
+    bert_only: bool = False,
+) -> bool:
     """Agenda uma correção. Devolve False se ela já está na fila/execução."""
     with _active_lock:
         if correction_id in _active:
@@ -42,7 +48,7 @@ def start(correction_id: int, theme: str, stored_name: str) -> bool:
         _active.add(correction_id)
     thread = threading.Thread(
         target=_run,
-        args=(correction_id, theme, stored_name),
+        args=(correction_id, theme, stored_name, bert_only),
         name=f"correcao-{correction_id}",
         daemon=True,
     )
@@ -55,10 +61,12 @@ def start(correction_id: int, theme: str, stored_name: str) -> bool:
     return True
 
 
-def _run(correction_id: int, theme: str, stored_name: str) -> None:
+def _run(
+    correction_id: int, theme: str, stored_name: str, bert_only: bool = False
+) -> None:
     try:
         with _semaphore:
-            run_correction(correction_id, theme, stored_name)
+            run_correction(correction_id, theme, stored_name, bert_only=bert_only)
     finally:
         with _active_lock:
             _active.discard(correction_id)
@@ -73,7 +81,13 @@ def _friendly_error(exc: Exception) -> str:
     )
 
 
-def run_correction(correction_id: int, theme: str, stored_name: str) -> None:
+def run_correction(
+    correction_id: int,
+    theme: str,
+    stored_name: str,
+    *,
+    bert_only: bool = False,
+) -> None:
     """Executa uma correção de ponta a ponta. Também é usada nos testes."""
     row = db.get_correction(correction_id)
     if row is None:
@@ -90,7 +104,12 @@ def run_correction(correction_id: int, theme: str, stored_name: str) -> None:
         text = grading.obtain_text(
             path, kind, settings, session_id=session_id
         )
-        result = grading.review(theme, text, settings, session_id=session_id)
+        if bert_only:
+            result = grading.review(
+                theme, text, settings, session_id=session_id, bert_only=True
+            )
+        else:
+            result = grading.review(theme, text, settings, session_id=session_id)
         db.finish_correction(
             correction_id,
             note=result.note,

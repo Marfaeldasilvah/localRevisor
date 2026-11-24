@@ -15,7 +15,7 @@
 <p class="review__meta">
   {{ correction["filename"] }} · {{ correction["created_at"] }} ·
   <span class="status status--{{ correction['status'] }}">{{ status_label }}</span>
-  {% if correction["score_mode"] == "bert+llm" %}· BERT + IA{% elif correction["score_mode"] == "llm" %}· IA{% endif %}
+  {% if correction["score_mode"] == "bert+llm" %}· BERT + IA{% elif correction["score_mode"] == "bert" %}· Somente BERT{% elif correction["score_mode"] == "llm" %}· IA{% endif %}
 </p>
 
 {% if correction["status"] == "corrigido" %}

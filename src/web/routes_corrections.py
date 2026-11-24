@@ -6,7 +6,7 @@ import math
 
 from flask import Flask, abort, flash, jsonify, redirect, render_template, request, url_for
 
-from .. import db, files, paths, worker
+from .. import bert_notas, db, files, paths, worker
 from .routes_config import settings_configured
 
 LOGGER = logging.getLogger(__name__)
@@ -20,9 +20,20 @@ STATUS_LABELS = {
 }
 
 
-def _enqueue(correction_id: int, theme: str, stored_name: str) -> bool:
+def _enqueue(
+    correction_id: int,
+    theme: str,
+    stored_name: str,
+    *,
+    bert_only: bool = False,
+) -> bool:
     try:
-        started = worker.start(correction_id, theme, stored_name)
+        if bert_only:
+            started = worker.start(
+                correction_id, theme, stored_name, bert_only=True
+            )
+        else:
+            started = worker.start(correction_id, theme, stored_name)
     except Exception as exc:
         LOGGER.exception("Falha ao iniciar a correção %s", correction_id)
         db.fail_correction(correction_id, f"Falha ao iniciar a correção: {exc}")
@@ -67,6 +78,7 @@ def register(app: Flask) -> None:
             status_labels=STATUS_LABELS,
             pending=db.pending_count(),
             configured=settings_configured(settings),
+            bert_available=bert_notas.instalado(),
         )
 
     @app.get("/status")
@@ -102,7 +114,14 @@ def register(app: Flask) -> None:
         if not db.mark_running(correction_id):
             flash("Não foi possível reagendar esta correção.", "error")
             return redirect(url_for("index"))
-        if not _enqueue(correction_id, row["theme"], row["stored_name"]):
+        settings = db.get_settings()
+        use_bert_only = (
+            (not settings_configured(settings) or request.form.get("bert_only") == "1")
+            and bert_notas.instalado()
+        )
+        if not _enqueue(
+            correction_id, row["theme"], row["stored_name"], bert_only=use_bert_only
+        ):
             flash(
                 "A correção falhou ao iniciar. Veja os detalhes na revisão.", "error"
             )
@@ -127,13 +146,19 @@ def register(app: Flask) -> None:
     @app.route("/upload", methods=["GET", "POST"])
     def upload():
         settings = db.get_settings()
-        if not settings_configured(settings):
-            flash("Configure a IA antes de enviar uma redação.", "warning")
+        ai_configured = settings_configured(settings)
+        bert_available = bert_notas.instalado()
+        if not ai_configured and not bert_available:
+            flash("Configure a IA ou baixe o BERT antes de enviar uma redação.", "warning")
             return redirect(url_for("config", setup=1))
 
         error = None
         theme = request.form.get("theme", "").strip()
         source = request.form.get("source", "file")
+        bert_only = (
+            bert_available
+            and (not ai_configured or request.form.get("bert_only") == "1")
+        )
         if request.method == "POST":
             if not theme:
                 error = "Informe o tema."
@@ -146,7 +171,9 @@ def register(app: Flask) -> None:
                     correction_id = db.create_correction(
                         "Texto colado.txt", stored_name, theme
                     )
-                    if _enqueue(correction_id, theme, stored_name):
+                    if _enqueue(
+                        correction_id, theme, stored_name, bert_only=bert_only
+                    ):
                         flash("Redação enviada. Correção em andamento.", "success")
                         return redirect(url_for("index"))
                     error = "Não foi possível iniciar a correção."
@@ -165,7 +192,9 @@ def register(app: Flask) -> None:
                         correction_id = db.create_correction(
                             file.filename, stored_name, theme
                         )
-                        if _enqueue(correction_id, theme, stored_name):
+                        if _enqueue(
+                            correction_id, theme, stored_name, bert_only=bert_only
+                        ):
                             flash("Redação enviada. Correção em andamento.", "success")
                             return redirect(url_for("index"))
                         error = "Não foi possível iniciar a correção."
@@ -177,6 +206,9 @@ def register(app: Flask) -> None:
             error=error,
             theme=theme,
             source=source,
+            ai_configured=ai_configured,
+            bert_available=bert_available,
+            bert_only=bert_only,
             back_url=url_for("index"),
             max_upload_mb=max(1, paths.MAX_UPLOAD_BYTES // (1024 * 1024)),
         )

@@ -200,6 +200,22 @@ class ReviewTests(unittest.TestCase):
             grading.review("Tema", "Redação.", SETTINGS, client=AlwaysLengthClient())
         self.assertIn("limite de tokens", str(ctx.exception))
 
+    def test_review_bert_only_without_ai_model(self):
+        settings = {"base_url": "", "correction_model": "", "use_bert": "0"}
+        fake_scores = {"C1": 160, "C2": 120, "C3": 160, "C4": 160, "C5": 120}
+        with mock.patch.object(
+            grading.bert_notas, "motivo_indisponivel", return_value=None
+        ):
+            with mock.patch.object(
+                grading.bert_notas, "estimar", return_value=(fake_scores, False)
+            ):
+                result = grading.review("Tema", "Redação.", settings, bert_only=True)
+        self.assertEqual(result.score_mode, "bert")
+        self.assertEqual(result.note, 720)
+        self.assertEqual(result.scores, fake_scores)
+        self.assertEqual(result.tokens_in, 0)
+        self.assertEqual(result.tokens_out, 0)
+
 
 class FetchModelsTests(unittest.TestCase):
     def _fake_response(self, status_code: int, payload=None, json_error: bool = False):

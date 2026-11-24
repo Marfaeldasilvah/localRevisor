@@ -15,7 +15,13 @@
 {% if not configured %}
 <section class="card setup-banner">
   <strong>A IA ainda não está configurada.</strong>
-  Escolha o provedor, conecte e selecione um modelo antes de enviar uma redação.
+  {% if bert_available %}
+  Você já pode enviar redações no modo <strong>Somente BERT</strong> (notas C1–C5
+  offline) ou configurar um provedor de IA para receber explicações detalhadas.
+  {% else %}
+  Escolha o provedor, conecte e selecione um modelo (ou baixe o BERT local) antes
+  de enviar uma redação.
+  {% endif %}
   <a href="{{ url_for('config', setup=1) }}">Abrir configurações</a>
 </section>
 {% endif %}
@@ -60,7 +66,7 @@
       <span class="card__meta">{{ correction["filename"] }} · {{ correction["created_at"] }}</span>
       <span class="meta-line">
         <span class="status status--{{ correction['status'] }}">{{ correction["status_label"] }}</span>
-        {% if correction["score_mode"] == "bert+llm" %}BERT + IA{% elif correction["score_mode"] == "llm" %}IA{% endif %}
+        {% if correction["score_mode"] == "bert+llm" %}BERT + IA{% elif correction["score_mode"] == "bert" %}Somente BERT{% elif correction["score_mode"] == "llm" %}IA{% endif %}
       </span>
       {% if correction["note_display"] is not none %}
       <span class="card__note">{{ correction["note_display"] }}/1000</span>
@@ -141,7 +147,7 @@
 {% else %}
 <section class="card empty-state">
   <p>Nenhuma correção por aqui ainda.</p>
-  {% if configured %}
+  {% if configured or bert_available %}
   <p><a href="{{ url_for('upload') }}">Envie a primeira redação</a>.</p>
   {% else %}
   <p><a href="{{ url_for('config', setup=1) }}">Configure a IA</a> para começar.</p>

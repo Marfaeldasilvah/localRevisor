@@ -70,9 +70,52 @@ class WebTests(unittest.TestCase):
         self.assertIn("Não foi possível enviar seu feedback", body)
 
     def test_upload_blocked_without_config(self):
-        response = self.client.get("/upload")
+        with mock.patch("src.bert_notas.instalado", return_value=False):
+            response = self.client.get("/upload")
         self.assertEqual(response.status_code, 302)
         self.assertIn("/config?setup=1", response.headers["Location"])
+
+    def test_upload_bert_only_without_ai_config(self):
+        with mock.patch("src.bert_notas.instalado", return_value=True):
+            response = self.client.get("/upload")
+            self.assertEqual(response.status_code, 200)
+            body = response.get_data(as_text=True)
+            self.assertIn("Modo Somente BERT ativo", body)
+            token = support.csrf(self.client, "/upload")
+            with mock.patch.object(main.worker, "start", return_value=True) as start:
+                post_resp = self.client.post(
+                    "/upload",
+                    data={
+                        "_csrf_token": token,
+                        "source": "text",
+                        "theme": "Tema offline",
+                        "text": "Redação avaliada somente no BERT.",
+                    },
+                )
+        self.assertEqual(post_resp.status_code, 302)
+        self.assertTrue(start.called)
+        self.assertTrue(start.call_args.kwargs.get("bert_only"))
+
+    def test_upload_bert_only_checkbox_with_ai_configured(self):
+        support.configure_models()
+        with mock.patch("src.bert_notas.instalado", return_value=True):
+            response = self.client.get("/upload")
+            self.assertEqual(response.status_code, 200)
+            self.assertIn("Somente pontuação do BERT", response.get_data(as_text=True))
+            token = support.csrf(self.client, "/upload")
+            with mock.patch.object(main.worker, "start", return_value=True) as start:
+                post_resp = self.client.post(
+                    "/upload",
+                    data={
+                        "_csrf_token": token,
+                        "source": "text",
+                        "theme": "Tema rápido",
+                        "text": "Redação para nota rápida.",
+                        "bert_only": "1",
+                    },
+                )
+        self.assertEqual(post_resp.status_code, 302)
+        self.assertTrue(start.call_args.kwargs.get("bert_only"))
 
     def test_index_shows_setup_banner(self):
         response = self.client.get("/")
@@ -260,6 +303,7 @@ class WebTests(unittest.TestCase):
         self.assertTrue(row["stored_name"].endswith(".pdf"))
 
     def test_review_shows_note_scores_and_source(self):
+        support.configure_models()
         correction_id = db.create_correction("redacao.txt", "redacao.txt", "Tema")
         db.finish_correction(
             correction_id,

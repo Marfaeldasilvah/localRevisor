@@ -25,6 +25,14 @@ class BenchTests(unittest.TestCase):
         self.assertEqual(args_ai.mode, "bert_ai")
         self.assertEqual(args_ai.limit, 3)
 
+        args_flag = parse_args(["--debug", "benchredação", "--bert-only", "-n", "4"])
+        self.assertEqual(args_flag.mode, "bert")
+        self.assertTrue(args_flag.bert_only)
+        self.assertEqual(args_flag.limit, 4)
+
+        args_override = parse_args(["--debug", "benchredação", "bert_ai", "--bert-only"])
+        self.assertEqual(args_override.mode, "bert")
+
     def test_load_essay_br_and_stratified_sampling(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
