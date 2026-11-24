@@ -285,6 +285,20 @@ class WebTests(unittest.TestCase):
         self.assertIn("Texto original da redação.", body)
         self.assertIn("Explicação da correção.", body)
         self.assertIn("estimativa", body)
+        self.assertIn("Refazer correção", body)
+
+        index_body = self.client.get("/").get_data(as_text=True)
+        self.assertIn('aria-label="Refazer correção"', index_body)
+
+        token = support.csrf(self.client, f"/review/{correction_id}")
+        with mock.patch.object(main.worker, "start", return_value=True) as start:
+            retry_response = self.client.post(
+                f"/correction/{correction_id}/retry",
+                data={"_csrf_token": token},
+            )
+        self.assertEqual(retry_response.status_code, 302)
+        start.assert_called_once_with(correction_id, "Tema", "redacao.txt")
+        self.assertEqual(db.get_correction(correction_id)["status"], "corrigindo")
 
     def test_legacy_pending_review_has_retry(self):
         correction_id = db.create_correction("a.txt", "a.txt", "Tema")

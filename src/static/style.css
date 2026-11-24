@@ -366,6 +366,10 @@ h2 {
   color: var(--on-surface-variant);
 }
 
+.review__actions {
+  margin: 12px 0 16px;
+}
+
 .review__text {
   white-space: pre-wrap;
 }

@@ -18,6 +18,21 @@
   {% if correction["score_mode"] == "bert+llm" %}· BERT + IA{% elif correction["score_mode"] == "llm" %}· IA{% endif %}
 </p>
 
+{% if correction["status"] == "corrigido" %}
+<div class="form__actions review__actions">
+  <form
+    method="post"
+    action="{{ url_for('retry', correction_id=correction['id']) }}"
+    data-confirm="Refazer esta correção com as configurações atuais?"
+  >
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+    <button class="button button--outlined button--small" type="submit">
+      Refazer correção
+    </button>
+  </form>
+</div>
+{% endif %}
+
 {% if correction["status"] in ("erro", "interrompido", "pendente") %}
 <section class="card {% if correction['status'] != 'pendente' %}card--error{% endif %}" role="alert">
   <strong>
