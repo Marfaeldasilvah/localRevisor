@@ -36,13 +36,21 @@ def validate_base_url(base_url: str) -> str:
 
 
 def opencode_headers(base_url: str, session_id: str | None = None) -> dict[str, str]:
-    hostname = urlparse(base_url).hostname or ""
+    hostname = (urlparse(base_url).hostname or "").lower()
     if hostname != "opencode.ai" and not hostname.endswith(".opencode.ai"):
         return {}
     return {
         "x-opencode-session": session_id or uuid4().hex,
         "User-Agent": "localRevisor/1.0",
     }
+
+
+def provider_headers(base_url: str, session_id: str | None = None) -> dict[str, str]:
+    headers = opencode_headers(base_url, session_id)
+    hostname = (urlparse(base_url).hostname or "").lower()
+    if hostname == "api.anthropic.com":
+        headers["anthropic-version"] = "2023-06-01"
+    return headers
 
 
 def api_client(settings: dict[str, str], session_id: str | None = None) -> OpenAI:
@@ -56,7 +64,7 @@ def api_client(settings: dict[str, str], session_id: str | None = None) -> OpenA
     return OpenAI(
         api_key=api_key or "local",
         base_url=base_url,
-        default_headers=opencode_headers(base_url, session_id) or None,
+        default_headers=provider_headers(base_url, session_id) or None,
         timeout=DEFAULT_TIMEOUT,
         max_retries=1,
     )
@@ -113,7 +121,7 @@ def fetch_models(base_url: str, api_key: str = "") -> list[str]:
     url = f"{base_url}/models"
     headers = {
         "Accept": "application/json",
-        **opencode_headers(base_url),
+        **provider_headers(base_url),
     }
     token = (api_key or "").strip()
     if token:
@@ -163,35 +171,66 @@ def _usage(response) -> tuple[int, int]:
     )
 
 
+def _extract_text(raw_content) -> str:
+    if isinstance(raw_content, str):
+        return raw_content
+    if isinstance(raw_content, list):
+        parts: list[str] = []
+        for item in raw_content:
+            if isinstance(item, str):
+                parts.append(item)
+            elif isinstance(item, dict) and item.get("type") in {None, "text", "output_text"}:
+                text = item.get("text")
+                if isinstance(text, str):
+                    parts.append(text)
+            else:
+                text = getattr(item, "text", None)
+                if isinstance(text, str):
+                    parts.append(text)
+        return "".join(parts)
+    return ""
+
+
+class _LengthTruncatedError(ModelOutputError):
+    """Sinal interno para retentar com mais tokens quando finish_reason='length'."""
+
+
 def _content(response) -> str:
     choices = getattr(response, "choices", None) or []
     if not choices:
         raise ModelOutputError("O provedor não devolveu nenhuma alternativa.")
     choice = choices[0]
-    content = getattr(getattr(choice, "message", None), "content", None)
-    if not isinstance(content, str) or not content.strip():
-        finish = getattr(choice, "finish_reason", None)
-        raise ModelOutputError(
-            f"O provedor devolveu conteúdo vazio (finish_reason={finish!r})."
-        )
-    if getattr(choice, "finish_reason", None) == "length":
-        raise ModelOutputError(
+    message = getattr(choice, "message", None)
+    content = _extract_text(getattr(message, "content", None))
+    finish = getattr(choice, "finish_reason", None)
+    if finish == "length":
+        if not content.strip():
+            raise _LengthTruncatedError(
+                "O modelo atingiu o limite de tokens antes de responder "
+                "(comum em modelos de raciocínio). Tente novamente ou escolha outro modelo."
+            )
+        raise _LengthTruncatedError(
             "A resposta do modelo foi cortada por limite de tokens. "
             "Tente novamente ou use um modelo com mais contexto."
+        )
+    if not content.strip():
+        raise ModelOutputError(
+            f"O provedor devolveu conteúdo vazio (finish_reason={finish!r})."
         )
     return content
 
 
-def create_completion(
+def _call_variants(
     client: OpenAI,
     *,
     model: str,
     messages: list[dict],
-    max_tokens: int,
+    max_tokens: int | None,
     json_mode: bool,
 ) -> tuple[str, int, int]:
-    """Tenta JSON mode e temperature 0, caindo para variantes compatíveis."""
-    base = {"model": model, "messages": messages, "max_tokens": max_tokens}
+    base: dict = {"model": model, "messages": messages}
+    if max_tokens is not None:
+        base["max_tokens"] = max_tokens
     # Alguns provedores compatíveis rejeitam response_format, temperature ou
     # max_tokens. Tenta do mais rico para o mais básico, mas só repete quando o
     # erro realmente menciona o parâmetro removido na próxima variante.
@@ -208,7 +247,8 @@ def create_completion(
             )
         )
     variants.append(({**base, "temperature": 0}, ("temperature", "max_tokens")))
-    variants.append((dict(base), ("max_tokens",)))
+    if max_tokens is not None:
+        variants.append((dict(base), ("max_tokens",)))
     variants.append(({"model": model, "messages": messages}, ()))
     last_error: Exception | None = None
     for kwargs, retry_terms in variants:
@@ -233,6 +273,43 @@ def create_completion(
         tokens_in, tokens_out = _usage(response)
         return content, tokens_in, tokens_out
     raise GradingError(f"O provedor recusou a requisição: {last_error}")
+
+
+def create_completion(
+    client: OpenAI,
+    *,
+    model: str,
+    messages: list[dict],
+    max_tokens: int,
+    json_mode: bool,
+) -> tuple[str, int, int]:
+    """Tenta JSON mode e temperature 0, retentando sem limite rígido se truncar."""
+    try:
+        return _call_variants(
+            client,
+            model=model,
+            messages=messages,
+            max_tokens=max_tokens,
+            json_mode=json_mode,
+        )
+    except _LengthTruncatedError:
+        expanded = max(max_tokens * 2, 16384)
+        try:
+            return _call_variants(
+                client,
+                model=model,
+                messages=messages,
+                max_tokens=expanded,
+                json_mode=json_mode,
+            )
+        except _LengthTruncatedError:
+            return _call_variants(
+                client,
+                model=model,
+                messages=messages,
+                max_tokens=None,
+                json_mode=json_mode,
+            )
 
 
 def repair_completion(

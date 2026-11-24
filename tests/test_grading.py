@@ -167,6 +167,39 @@ class ReviewTests(unittest.TestCase):
             with self.assertRaises(grading.GradingError):
                 grading.review("Tema", "Redação.", settings, client=FakeClient("{}"))
 
+    def test_review_retries_when_truncated_by_length(self):
+        valid = (
+            '{"scores": {"C1": 120, "C2": 120, "C3": 120, "C4": 120, "C5": 120},'
+            ' "note": 600, "explanation": "ok", "errors": []}'
+        )
+        responses = [response("", finish="length"), response(valid, finish="stop")]
+        calls: list[dict] = []
+
+        class LengthClient:
+            class chat:
+                class completions:
+                    @staticmethod
+                    def create(**kwargs):
+                        calls.append(kwargs)
+                        return responses.pop(0)
+
+        result = grading.review("Tema", "Redação.", SETTINGS, client=LengthClient())
+        self.assertEqual(result.note, 600)
+        self.assertEqual(len(calls), 2)
+        self.assertGreater(calls[1]["max_tokens"], calls[0]["max_tokens"])
+
+    def test_review_raises_clear_error_when_length_persists(self):
+        class AlwaysLengthClient:
+            class chat:
+                class completions:
+                    @staticmethod
+                    def create(**kwargs):
+                        return response("", finish="length")
+
+        with self.assertRaises(grading.ModelOutputError) as ctx:
+            grading.review("Tema", "Redação.", SETTINGS, client=AlwaysLengthClient())
+        self.assertIn("limite de tokens", str(ctx.exception))
+
 
 class FetchModelsTests(unittest.TestCase):
     def _fake_response(self, status_code: int, payload=None, json_error: bool = False):
